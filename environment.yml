@@ -6,6 +6,10 @@ dependencies:
   - black
   - flake8
   - isort
+  - scikit-learn
+  - cmocean
+  - cfeature
+  - pickle
   - pip
   - typer
   - loguru
