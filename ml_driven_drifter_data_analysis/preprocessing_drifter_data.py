@@ -4,7 +4,8 @@ import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 import pandas as pd
 from pathlib import Path
-from ml_driven_drifter_data_analysis.plots import plot_trajs
+from haversine import haversine, Unit
+from plots import plot_trajs
 #%%
 PROJ_ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = PROJ_ROOT / "data"
@@ -15,11 +16,11 @@ df_drifters = pd.read_csv(f'{PROJ_ROOT}/references/drifters_id.csv',  dtype={'ID
 drifters_id_dict = dict(zip(df_drifters['Drifter'], df_drifters['ID']))
 
 ds={str(df_drifters['ID'].values[i]): ds_og.sel(trajectory=df_drifters['Drifter'].values[i]).swap_dims({"obs": "time"}) for i in range(len(ds_og.trajectory.values))}
-dt = xr.DataTree.from_dict(ds)
+dt_og = xr.DataTree.from_dict(ds)
 
 # %%
 
-def remove_after_land(dt, velocity_ds):
+def remove_after_land(dt, velocity_ds, buffer_time=500):
     """
     Remove all time coordinates from all datasets after the first land encounter.
     """
@@ -27,21 +28,24 @@ def remove_after_land(dt, velocity_ds):
     mask = RegularGridInterpolator((velocity_ds['latitude'].values, velocity_ds['longitude'].values), land_mask, method='nearest')
     
     first_land_times, last_measurement_times = {}, {}
+
     for key in dt.leaves:
         ds = key.ds
         lons, lats =ds['lon'].values, ds['lat'].values
         time_steps = np.sum(~np.isnan(ds['time'].values))
-        
+
         for t in range(time_steps):
             if mask((lats[t], lons[t])) == 0:
-                first_land= ds['time'].values[t]
+                first_land= ds['time'][t].values
                 first_land_times[key.name] = first_land
-            
+                if t>buffer_time:
+                    break
         last_measurement_times[key.name]=ds['time'].values[time_steps-1]
 
     last_index = min(min(first_land_times.values()), min(last_measurement_times.values()))
     print(f'Time first drifter beaches: {min(first_land_times.values())}')
     print(f'Time first drifter stops measuring: {min(last_measurement_times.values())}')
+
     
     dictionary = {}
     for key in dt.leaves:
@@ -87,16 +91,6 @@ def eliminate_signal_errors(dt, threshold=3):
     xarray.DataTree: A new datatree with erroneous observations removed.
     """
 
-    def haversine(lon1, lat1, lon2, lat2):
-        """Compute the great-circle distance between two points using the Haversine formula."""
-        R = 6371e3  # Earth radius in meters
-        lon1, lat1, lon2, lat2 = map(np.radians, [lon1, lat1, lon2, lat2])
-        dlon = lon2 - lon1
-        dlat = lat2 - lat1
-        a = np.sin(dlat/2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon/2)**2
-        c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1-a))
-        return R * c  # Distance in meters
-
     datasets = {}
     for node in dt.leaves:  # Iterate over all leaf nodes
         ds = node.ds  # Extract the dataset from the node
@@ -106,7 +100,7 @@ def eliminate_signal_errors(dt, threshold=3):
 
         # Compute time differences in seconds 
         time_diffs = time.diff('time').dt.total_seconds().values  # Ensure correct shape
-        distances = haversine(lon[:-1], lat[:-1], lon[1:], lat[1:])
+        distances = [haversine((lat1, lon1), (lat2, lon2), unit=Unit.METERS) for lat1, lon1, lat2, lon2 in zip(lat[:-1], lon[:-1], lat[1:], lon[1:])]
         # Compute speeds (m/s)
         speeds = distances / time_diffs
         # Identify indices where the speed is less than or equal to the threshold
@@ -122,10 +116,13 @@ def eliminate_signal_errors(dt, threshold=3):
 velocity_land_mask = xr.open_dataset(f'{PROJ_ROOT}/data/external/velocity_land_mask.nc')
 
 #apply funcitons to data
-dt = remove_after_land(dt, velocity_land_mask)
+dt = remove_after_land(dt_og, velocity_land_mask)
+#%%
 dt = filter_time(dt)
 dt = eliminate_signal_errors(dt)
-
+#%%
+plot_trajs(dt)
+#%%
 # Save or further process the DataTree (dt) as needed
-dt.to_netcdf(f'{PROJ_ROOT}/data/interim/processed_data.nc')  # Example placeholder for saving dt
+dt.to_netcdf(f'{PROJ_ROOT}/data/interim/preprocessed_drifter_data.nc')  
 # %%
