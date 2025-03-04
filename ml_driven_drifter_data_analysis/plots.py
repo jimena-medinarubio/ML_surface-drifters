@@ -1,6 +1,5 @@
 #%%
 from pathlib import Path
-import typer
 from loguru import logger
 from tqdm import tqdm
 import matplotlib.pyplot as plt
@@ -8,19 +7,14 @@ import cartopy.feature as cfeature
 import cartopy.crs as ccrs
 import seaborn as sns
 
-from ml_driven_drifter_data_analysis.config import FIGURES_DIR, PROCESSED_DATA_DIR
+from config import FIGURES_DIR, PROCESSED_DATA_DIR
 
-app = typer.Typer()
+#app = typer.Typer()
 
 
-@app.command()
+#@app.command()
 
-def plot_trajs(
-    # ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----
-    dt: Path = PROCESSED_DATA_DIR / "dataset.csv",
-    output_path: Path = FIGURES_DIR / "plot.png",
-    # -----------------------------------------
-):
+def plot_trajs(dt, name_fig='plot', output_path=None,):
         # Create a figure and axes with a cartopy projection
     fig, ax = plt.subplots(figsize=(14, 12), subplot_kw={'projection': ccrs.PlateCarree()})
 
@@ -39,13 +33,14 @@ def plot_trajs(
     ax.add_feature(cfeature.BORDERS, linestyle=':')
 
     # Iterate through each drifter and plot its trajectory
-    for idx, drifter_id in enumerate(dt.leaves):
+    for idx, node in enumerate(dt.leaves):
+        drifter=node.ds
         # Plot the trajectory with a unique color
-        ax.plot(dt[drifter_id].lons, dt[drifter_id].lats, color=palette[idx], linewidth=1, zorder=2,)
+        ax.plot(drifter['lon'], drifter['lat'], color=palette[idx], linewidth=1, zorder=2,)
         # Plot the initial position with a star marker
-        ax.scatter(dt[drifter_id].lons.values[0], dt[drifter_id].lats.values[0], marker='*', s=240, color=palette[idx], edgecolors=b , zorder=3)
+        ax.scatter(drifter['lon'].values[0],drifter['lat'].values[0], marker='*', s=240, color=palette[idx], edgecolors=b , zorder=3)
         # Plot the final position with a square marker
-        ax.scatter(dt[drifter_id].lons.values[-1], dt[drifter_id].lats.values[-1], marker='^', s=240, color=palette[idx], edgecolors=b, zorder=3)
+        ax.scatter(drifter['lon'].values[-1], drifter['lat'].values[-1], marker='^', s=240, color=palette[idx], edgecolors=b, zorder=3)
 
     # Set the labels for latitude and longitude
     ax.set_xlabel('Longitude', fontsize=14)
@@ -70,8 +65,17 @@ def plot_trajs(
 
     # Show the plot
     plt.tight_layout()
-    plt.show()
+   
+
+    if output_path is None:
+        PROJ_ROOT = Path(__file__).resolve().parents[1]
+        FIGURES_DIR = PROJ_ROOT / "reports" / "figures"
+        output_path = FIGURES_DIR / f'{name_fig}.png'
     plt.savefig(output_path, dpi=300)
 
-if __name__ == "__main__":
-    app()
+    plt.show()
+
+#if __name__ == "__main__":
+ #   app()
+
+# %%
