@@ -108,7 +108,6 @@ def calcualte_residual(dt, period='24.83h'):
     
     return xr.DataTree.from_dict(d) 
 
-
 def select_frequency_interval(ds, freqs, atol=25, window_size=100):
     # Calculate the time differences in seconds
         time_diff = ds['time'].differentiate('obs', datetime_unit='s')
@@ -120,7 +119,6 @@ def select_frequency_interval(ds, freqs, atol=25, window_size=100):
         # Adjust the index to match the original time_diff length
         last_true_index = last_true_in_rolling + window_size - 1  # Adjust for the window size offset
         return last_true_index
-    
 
 def flipping_index_continuous(dt, deltat, sampling_frequencies=[300, 1800]):
 
