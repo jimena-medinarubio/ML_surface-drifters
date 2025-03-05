@@ -2,11 +2,7 @@
 
 import xarray as xr
 import numpy as np
-from scipy.interpolate import RegularGridInterpolator
-import pandas as pd
 from pathlib import Path
-from haversine import haversine, Unit
-from plots import plot_trajs
 import matplotlib.pyplot as plt
 import seaborn as sns
 
