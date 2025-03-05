@@ -13,6 +13,7 @@ DATA_DIR = PROJ_ROOT / "data"
 
 dt_og=xr.open_datatree(f'{DATA_DIR}/interim/preprocessed_drifter_data.nc')
 
+#plot_trajs(dt_og, 'trajectories')
 #%%
 def drifter_velocity(data):
     """compute zonal and meridional velocities of drifter
@@ -76,7 +77,6 @@ def calculate_velocities(dt, method='cds'):
             mutable_ds["vx"] =  xr.DataArray(vel_x_central, dims="time", coords={"time": mutable_ds["time"]})
             mutable_ds["vy"] = xr.DataArray(vel_y_central, dims="time", coords={"time": mutable_ds["time"]})
             mutable_ds["v"] = xr.DataArray(speeds_central, dims="time", coords={"time": mutable_ds["time"]})
-
             #plt.plot(mutable_ds['time'], mutable_ds['vx'])
 
         elif method == 'forward':  # Forward Difference Scheme
@@ -163,10 +163,10 @@ def flipping_index_continuous(dt, deltat, sampling_frequencies=[300, 1800]):
     
     return xr.DataTree.from_dict(d)
 #%%
-dt=calculate_velocities(dt_og)
+dt=calculate_velocities(dt_og, method='forward')
 dt=calcualte_residual(dt)
 dt=flipping_index_continuous(dt, 3, sampling_frequencies=[300, 1800])
 
 # %%
-dt.to_netcdf(f'{PROJ_ROOT}/data/interim/processed_drifter_data.nc')  
+dt.to_netcdf(f'{PROJ_ROOT}/data/interim/processed_drifter_data_forward.nc')  
 # %%
