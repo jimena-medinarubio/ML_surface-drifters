@@ -12,7 +12,7 @@ DATA_DIR = PROJ_ROOT / "data"
 RAW_DATA_DIR = DATA_DIR / "raw"
 
 ds_og=xr.open_dataset(f'{RAW_DATA_DIR}/waddendrifters2024.nc')
-df_drifters = pd.read_csv(f'{PROJ_ROOT}/references/drifters_id.csv',  dtype={'ID': str})
+df_drifters = pd.read_csv(f'{PROJ_ROOT}/references/drifters_info.csv',  delimiter=';', dtype={'ID': str})
 drifters_id_dict = dict(zip(df_drifters['Drifter'], df_drifters['ID']))
 
 ds={str(df_drifters['ID'].values[i]): ds_og.sel(trajectory=df_drifters['Drifter'].values[i]).swap_dims({"obs": "time"}) for i in range(len(ds_og.trajectory.values))}
@@ -121,8 +121,7 @@ dt = remove_after_land(dt_og, velocity_land_mask)
 dt = filter_time(dt)
 dt = eliminate_signal_errors(dt)
 #%%
-plot_trajs(dt)
-#%%
 # Save or further process the DataTree (dt) as needed
 dt.to_netcdf(f'{PROJ_ROOT}/data/interim/preprocessed_drifter_data.nc')  
 # %%
+
