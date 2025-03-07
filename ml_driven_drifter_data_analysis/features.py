@@ -1,29 +1,75 @@
+#%%
 from pathlib import Path
-
-import typer
-from loguru import logger
 from tqdm import tqdm
+import xarray as xr
+import numpy as np
+import pandas as pd
+from config import DATA_DIR
+from scipy.special import erfc
 
-from ml_driven_drifter_data_analysis.config import PROCESSED_DATA_DIR
+#%%
+dt_features=xr.open_datatree(f'{DATA_DIR}/interim/interpolated_atm_ocean_datasets.nc')
 
-app = typer.Typer()
+# %%
+
+def calculate_stokes_drift_depth(u, Tp, z, beta=1, gamma=5.97,):
+        def calculate_k(u, tp, beta):
+            return abs(u)/(2*abs(tp))*(1-2*beta/3)
+        k=calculate_k(u, Tp, gamma)
+        expo=np.exp(2*k*z)
+        a= beta*np.sqrt(-2*k*np.pi*z )*erfc( np.sqrt(-2*k*z) )
+        return u*(expo-a)
+
+def transformations(df, filter_currents=True):
+
+    for var in ['Ustokes', 'Vstokes']:
+        if var in df.columns:  # Check if the variable exists
+            df[var] = calculate_stokes_drift_depth(df[var], df['Tp'], 0.5)
 
 
-@app.command()
-def main(
-    # ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----
-    input_path: Path = PROCESSED_DATA_DIR / "dataset.csv",
-    output_path: Path = PROCESSED_DATA_DIR / "features.csv",
-    # -----------------------------------------
-):
-    # ---- REPLACE THIS WITH YOUR OWN CODE ----
-    logger.info("Generating features from dataset...")
-    for i in tqdm(range(10), total=10):
-        if i == 5:
-            logger.info("Something happened for iteration 5.")
-    logger.success("Features generation complete.")
-    # -----------------------------------------
+    wave_directions=['Wave_dir_wind', 'Wave_dir_swell', 'Wave_dir_swell_secondary', 'Wave_dir']
+    for i, var in enumerate(['Hs_wind', 'Hs_swell', 'Hs_swell_secondary', 'Tp']):
+        if var in df.columns:
+            angle=(np.array(df[wave_directions[i]])+180) %360 
+            df[f'{var}_x']=df[var]*np.sin(np.radians(angle))
+            df[f'{var}_y']=df[var]*np.cos(np.radians(angle))
+            df=df.drop(columns=[var, wave_directions[i]])
+    
+    if filter_currents:
+        for var in ['U', 'V']:
+            df[f'{var}_lp'] = df.rolling(window='24h', on='time', min_periods=1, center=True)[f'{var}'].mean()
+            df[f'{var}_hp'] = df[var]-df[f'{var}_lp']
+            df=df.drop(columns=[var])
 
+    return df
 
-if __name__ == "__main__":
-    app()
+def create_feature_matrix(dt_features, selected_vars):
+    dfs = []
+    for drifter_id, node in dt_features.children.items():
+        ds_subset = node.ds[selected_vars]  # Select only chosen variables
+        if 'time' not in ds_subset.coords:
+            ds_subset['time'] = node.ds['time']  # Add time if not present in the subset
+        
+        df = ds_subset.to_dataframe() # Convert dataset to DataFrame
+        df["drifter_id"] = drifter_id  # Add drifter ID
+        
+        df=df.reset_index()
+        df=transformations(df)
+        print(df)
+        df=df.set_index('time')
+
+        dfs.append(df)
+
+    # Combine all drifters into one DataFrame
+    feature_matrix = pd.concat(dfs, ignore_index=False)
+
+    if 'obs' in feature_matrix.columns or 'trajectory' in feature_matrix.columns:
+        feature_matrix = feature_matrix.drop(columns=['obs', 'trajectory'])
+
+    return feature_matrix
+
+# %%
+#example
+feature_matrix=create_feature_matrix(dt_features, dt_features['6480'].keys())
+
+# %%
