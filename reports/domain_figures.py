@@ -48,7 +48,7 @@ def plot_bathymetry(bathymetry_field, name_fig, output_path=None):
         output_path = FIGURES_DIR / f'{name_fig}.png'
     plt.savefig(output_path, dpi=300)
     plt.show()
-
+#%%
 def plot_europe_with_region(name_fig, output_path=None):
     # Create a map of Europe
     fig, ax = plt.subplots(figsize=(5, 6), subplot_kw={'projection': ccrs.Robinson()})
@@ -84,7 +84,7 @@ def plot_europe_with_region(name_fig, output_path=None):
     if output_path is None:
         PROJ_ROOT = Path(__file__).resolve().parents[1]
         FIGURES_DIR = PROJ_ROOT / "reports" / "figures"
-        output_path = FIGURES_DIR / f'{name_fig}.png'
+        output_path = FIGURES_DIR / f'{name_fig}.svg'
     plt.savefig(output_path, dpi=300)
 
     plt.show()
@@ -96,5 +96,6 @@ DATA_DIR = PROJ_ROOT / "data"
 
 bathymetry_file=xr.open_dataset(f'{DATA_DIR}/external/bathymetry.nc')
 plot_bathymetry(bathymetry_file, 'bathymetry')
+#%%
 plot_europe_with_region('europe')
 # %%
