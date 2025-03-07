@@ -13,7 +13,10 @@ DATA_DIR = PROJ_ROOT / "data"
 
 dt_og=xr.open_datatree(f'{DATA_DIR}/interim/preprocessed_drifter_data.nc')
 
-#plot_trajs(dt_og, 'trajectories')
+#%%
+df_drifters = pd.read_csv(f'{PROJ_ROOT}/references/drifters_info.csv',  delimiter=';', dtype={'ID': str})
+color_dict={str(df_drifters['ID'].values[i]): df_drifters['color'].values[i] for i in range(len(df_drifters['ID'].values))}
+plot_trajs(dt_og, 'trajectories', palette=color_dict, output_format='png')
 #%%
 def drifter_velocity(data):
     """compute zonal and meridional velocities of drifter
@@ -29,7 +32,7 @@ def drifter_velocity(data):
     v = Re*np.gradient(latr,time)
 
     return u,v
-
+#%%
 def calculate_velocities(dt, method='cds'):
     """
     Calculate time differences, distances, and zonal/meridional displacements, then compute forward and 
@@ -87,7 +90,7 @@ def calculate_velocities(dt, method='cds'):
         d[node.name] = mutable_ds
 
     return xr.DataTree.from_dict(d)
-
+#%%
 def calcualte_residual(dt, period='24.83h'):
 
     d={}
@@ -107,7 +110,7 @@ def calcualte_residual(dt, period='24.83h'):
         d[node.name]=mutable_ds
     
     return xr.DataTree.from_dict(d) 
-
+#%%
 def select_frequency_interval(ds, freqs, atol=25, window_size=100):
     # Calculate the time differences in seconds
         time_diff = ds['time'].differentiate('obs', datetime_unit='s')
@@ -120,6 +123,7 @@ def select_frequency_interval(ds, freqs, atol=25, window_size=100):
         last_true_index = last_true_in_rolling + window_size - 1  # Adjust for the window size offset
         return last_true_index
 
+#%%
 def flipping_index_continuous(dt, deltat, sampling_frequencies=[300, 1800]):
 
     """
@@ -163,10 +167,10 @@ def flipping_index_continuous(dt, deltat, sampling_frequencies=[300, 1800]):
     
     return xr.DataTree.from_dict(d)
 #%%
-dt=calculate_velocities(dt_og, method='forward')
+dt=calculate_velocities(dt_og)
 dt=calcualte_residual(dt)
 dt=flipping_index_continuous(dt, 3, sampling_frequencies=[300, 1800])
 
 # %%
-dt.to_netcdf(f'{PROJ_ROOT}/data/interim/processed_drifter_data_forward.nc')  
+dt.to_netcdf(f'{PROJ_ROOT}/data/interim/processed_drifter_data.nc')  
 # %%
