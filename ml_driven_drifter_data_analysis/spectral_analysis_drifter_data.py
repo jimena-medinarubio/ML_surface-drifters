@@ -177,7 +177,7 @@ def plot_Fourier_Wavelet(pw, dt, name_fig='Wavelet_Fourier', output_path=None):
     if output_path is None:
         PROJ_ROOT = Path(__file__).resolve().parents[1]
         FIGURES_DIR = PROJ_ROOT / "reports" / "figures"
-        output_path = FIGURES_DIR / f'{name_fig}.png'
+        output_path = FIGURES_DIR / f'{name_fig}.svg'
     plt.savefig(output_path, dpi=300)
 
     plt.show()
