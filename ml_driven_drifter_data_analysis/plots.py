@@ -14,16 +14,18 @@ from config import FIGURES_DIR, PROCESSED_DATA_DIR
 
 #@app.command()
 
-def plot_trajs(dt, name_fig='plot', output_path=None,):
+def plot_trajs(dt, name_fig='plot', output_path=None, palette=None, output_format='svg'):
         # Create a figure and axes with a cartopy projection
     fig, ax = plt.subplots(figsize=(14, 12), subplot_kw={'projection': ccrs.PlateCarree()})
 
-    bright_palette = sns.color_palette("bright", 10)
-    extra_colors = [(204/255, 153/255, 255/255),   # Bright Orange
-                    (0, 153/255, 153/255)]   # Bright Teal
+    if palette is None:
+        bright_palette = sns.color_palette("bright", 10)
+        extra_colors = [(204/255, 153/255, 255/255),   # Bright Orange
+                        (0, 153/255, 153/255)]   # Bright Teal
 
-    # Extend the original palette by appending the new colors
-    palette = bright_palette + extra_colors
+        # Extend the original palette by appending the new colors
+        palette_array = bright_palette + extra_colors
+        palette={drifter.name: palette_array[idx] for idx, drifter in enumerate(dt.leaves)}
     b='black'
     # Add land and ocean features
     land_feature = cfeature.LAND  # Reference to LAND feature
@@ -36,11 +38,11 @@ def plot_trajs(dt, name_fig='plot', output_path=None,):
     for idx, node in enumerate(dt.leaves):
         drifter=node.ds
         # Plot the trajectory with a unique color
-        ax.plot(drifter['lon'], drifter['lat'], color=palette[idx], linewidth=1, zorder=2,)
+        ax.plot(drifter['lon'], drifter['lat'], color=palette[node.name], linewidth=1, zorder=2,)
         # Plot the initial position with a star marker
-        ax.scatter(drifter['lon'].values[0],drifter['lat'].values[0], marker='*', s=240, color=palette[idx], edgecolors=b , zorder=3)
+        ax.scatter(drifter['lon'].values[0],drifter['lat'].values[0], marker='*', s=240, color=palette[node.name], edgecolors=b , zorder=3)
         # Plot the final position with a square marker
-        ax.scatter(drifter['lon'].values[-1], drifter['lat'].values[-1], marker='^', s=240, color=palette[idx], edgecolors=b, zorder=3)
+        ax.scatter(drifter['lon'].values[-1], drifter['lat'].values[-1], marker='^', s=240, color=palette[node.name], edgecolors=b, zorder=3)
 
     # Set the labels for latitude and longitude
     ax.set_xlabel('Longitude', fontsize=14)
@@ -70,7 +72,7 @@ def plot_trajs(dt, name_fig='plot', output_path=None,):
     if output_path is None:
         PROJ_ROOT = Path(__file__).resolve().parents[1]
         FIGURES_DIR = PROJ_ROOT / "reports" / "figures"
-        output_path = FIGURES_DIR / f'{name_fig}.png'
+        output_path = FIGURES_DIR / f'{name_fig}.{output_format}'
     plt.savefig(output_path, dpi=300)
 
     plt.show()
