@@ -55,7 +55,7 @@ def remove_after_land(dt, velocity_ds, buffer_time=500):
         time_array = time_index[~time_index.isna()].values.astype('datetime64')
         differences = np.abs(time_array - last_index)
         index = np.argmin(differences)
-        dictionary[key.name] = ds.isel(time=slice(0, index + 1))
+        dictionary[key.name] = ds.isel(time=slice(60*24//5, index + 1)) #allow initial buffer time of 24h
     
     return xr.DataTree.from_dict(dictionary)
 
@@ -124,4 +124,3 @@ dt = eliminate_signal_errors(dt)
 # Save or further process the DataTree (dt) as needed
 dt.to_netcdf(f'{PROJ_ROOT}/data/interim/preprocessed_drifter_data.nc')  
 # %%
-
