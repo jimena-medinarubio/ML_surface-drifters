@@ -18,7 +18,8 @@ curr_file=f'{DATA_DIR}/external/ocean_currents.nc'
 
 wave_variables=pd.read_csv(f'{PROJ_ROOT}/references/waves_dataset.csv')
 
-#%%
+#%#
+
 def create_fieldset(file, time_variable, vars, vars_names):
     filename= {vars_names[i]: file for i in range(len(vars_names))}
     variables = {vars_names[i]: vars[i] for i in range(len(vars_names))}
@@ -35,6 +36,7 @@ def create_fieldset(file, time_variable, vars, vars_names):
 
     return fieldset
 
+#%%
 def interpolate_datasets( fieldsets, datatree, time_starts, variables):
 
     mutable_ds={node.name: [] for node in datatree.leaves}
@@ -61,19 +63,34 @@ def interpolate_datasets( fieldsets, datatree, time_starts, variables):
         mutable_ds[node.name]=ds_combined
     
     return xr.DataTree.from_dict(mutable_ds)
-# %%
+#%%
 
-wave_field= create_fieldset(wave_file, 'time', wave_variables.values[0], wave_variables.columns)
-wind_field= create_fieldset(wind_file, 'valid_time', ['u10', 'v10'], ['U10', 'V10'])
-curr_field= create_fieldset(curr_file, 'time', ['uo', 'vo'], ['U', 'V'])
+# Only execute this if running directly (not on import)
+if __name__ == "__main__":
+    PROJ_ROOT = Path(__file__).resolve().parents[1]
+    DATA_DIR = PROJ_ROOT / "data"
 
-# %%
-fieldsets=[curr_field, wind_field, wave_field]
-time_starts=[xr.open_dataset(curr_file)['time'][0], xr.open_dataset(wind_file)['valid_time'][0], xr.open_dataset(wave_file)['time'][0]]
-variables=[['U', 'V'], ['U10', 'V10'], wave_variables.columns]
-dt_interpolated=interpolate_datasets(fieldsets, datatree, time_starts, variables)
+    datatree = xr.open_datatree(f'{DATA_DIR}/interim/processed_drifter_data.nc')
 
+    wave_file = f'{DATA_DIR}/external/waves-wind-swell.nc' 
+    wind_file = f'{DATA_DIR}/external/wind.nc' 
+    curr_file = f'{DATA_DIR}/external/ocean_currents.nc' 
 
-# %%
-dt_interpolated.to_netcdf(f'{PROJ_ROOT}/data/interim/interpolated_atm_ocean_datasets.nc')  
+    wave_variables = pd.read_csv(f'{PROJ_ROOT}/references/waves_dataset.csv')
+
+    wave_field = create_fieldset(wave_file, 'time', wave_variables.values[0], wave_variables.columns)
+    wind_field = create_fieldset(wind_file, 'valid_time', ['u10', 'v10'], ['U10', 'V10'])
+    curr_field = create_fieldset(curr_file, 'time', ['uo', 'vo'], ['U', 'V'])
+
+    fieldsets = [curr_field, wind_field, wave_field]
+    time_starts = [
+        xr.open_dataset(curr_file)['time'][0],
+        xr.open_dataset(wind_file)['valid_time'][0],
+        xr.open_dataset(wave_file)['time'][0]
+    ]
+    variables = [['U', 'V'], ['U10', 'V10'], wave_variables.columns]
+
+    dt_interpolated = interpolate_datasets(fieldsets, datatree, time_starts, variables)
+
+    dt_interpolated.to_netcdf(f'{PROJ_ROOT}/data/interim/interpolated_atm_ocean_datasets.nc') 
 # %%
