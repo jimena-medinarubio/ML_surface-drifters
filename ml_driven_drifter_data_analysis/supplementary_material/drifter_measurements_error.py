@@ -50,6 +50,7 @@ def find_static_coords(datatree, time_buffer=50, name_fig=None, output_path=None
     for i, node in enumerate(datatree.leaves):
         ds=node.ds
         ds=ds.where(ds['v'][:time_buffer]<0.01, drop=True)
+        print(ds.time[0].values, ds.time[-1].values, node.name)
         deviations_lat, deviations_lon= degrees_to_meters(ds['lat'], ds['lon'], ds['lat'].mean())
 
         latitude_std=deviations_lat.std().values
