@@ -173,4 +173,5 @@ dt=flipping_index_continuous(dt, 3, sampling_frequencies=[300, 1800])
 
 # %%
 dt.to_netcdf(f'{PROJ_ROOT}/data/interim/processed_drifter_data.nc')  
+
 # %%
