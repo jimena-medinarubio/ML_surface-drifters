@@ -12,7 +12,7 @@ dt_features=xr.open_datatree(f'{DATA_DIR}/interim/interpolated_atm_ocean_dataset
 
 # %%
 
-def calculate_stokes_drift_depth(u, Tp, z, beta=1, gamma=5.97,):
+def calculate_stokes_drift_depth(u, Tp, z, beta=1, gamma=5.97):
         def calculate_k(u, tp, beta):
             return abs(u)/(2*abs(tp))*(1-2*beta/3)
         k=calculate_k(u, Tp, gamma)
@@ -20,7 +20,7 @@ def calculate_stokes_drift_depth(u, Tp, z, beta=1, gamma=5.97,):
         a= beta*np.sqrt(-2*k*np.pi*z )*erfc( np.sqrt(-2*k*z) )
         return u*(expo-a)
 
-def transformations(df, filter_currents=True):
+def transformations(df, filter_currents=True, waves=True):
 
     for var in ['Ustokes', 'Vstokes']:
         if var in df.columns:  # Check if the variable exists
@@ -28,22 +28,25 @@ def transformations(df, filter_currents=True):
 
 
     wave_directions=['Wave_dir_wind', 'Wave_dir_swell', 'Wave_dir_swell_secondary', 'Wave_dir']
-    for i, var in enumerate(['Hs_wind', 'Hs_swell', 'Hs_swell_secondary', 'Tp']):
-        if var in df.columns:
-            angle=(np.array(df[wave_directions[i]])+180) %360 
-            df[f'{var}_x']=df[var]*np.sin(np.radians(angle))
-            df[f'{var}_y']=df[var]*np.cos(np.radians(angle))
-            df=df.drop(columns=[var, wave_directions[i]])
+    if waves==True:
+        for i, var in enumerate(['Hs_wind', 'Hs_swell', 'Hs_swell_secondary', 'Tp']):
+            if var in df.columns:
+                angle=(np.array(df[wave_directions[i]])+180) %360 
+                df[f'{var}_x']=df[var]*np.sin(np.radians(angle))
+                df[f'{var}_y']=df[var]*np.cos(np.radians(angle))
+                df=df.drop(columns=[var, wave_directions[i]])
     
     if filter_currents:
         for var in ['U', 'V']:
-            df[f'{var}_lp'] = df.rolling(window='24h', on='time', min_periods=1, center=True)[f'{var}'].mean()
+            df = df.set_index('time')
+            df[f'{var}_lp'] = df[var].rolling(window='24.83h', min_periods=1, center=True).mean()
             df[f'{var}_hp'] = df[var]-df[f'{var}_lp']
             df=df.drop(columns=[var])
+            df = df.reset_index(drop=False)
 
     return df
 
-def create_feature_matrix(dt_features, selected_vars):
+def create_feature_matrix(dt_features, selected_vars, waves=True, fc=True):
     dfs = []
     for drifter_id, node in dt_features.children.items():
         ds_subset = node.ds[selected_vars]  # Select only chosen variables
@@ -54,8 +57,8 @@ def create_feature_matrix(dt_features, selected_vars):
         df["drifter_id"] = drifter_id  # Add drifter ID
         
         df=df.reset_index()
-        df=transformations(df)
-        print(df)
+        df=transformations(df, waves=waves, filter_currents=fc)
+
         df=df.set_index('time')
 
         dfs.append(df)
@@ -65,11 +68,15 @@ def create_feature_matrix(dt_features, selected_vars):
 
     if 'obs' in feature_matrix.columns or 'trajectory' in feature_matrix.columns:
         feature_matrix = feature_matrix.drop(columns=['obs', 'trajectory'])
+    
+    feature_matrix.columns = [str(col) for col in feature_matrix.columns]
 
     return feature_matrix
 
 # %%
 #example
-feature_matrix=create_feature_matrix(dt_features, dt_features['6480'].keys())
+feature_matrix=create_feature_matrix(dt_features, ['U10', 'V', 'U', 'Ustokes', 'Tp', 'Wave_dir'])
 
+# %%
+print(feature_matrix)
 # %%
