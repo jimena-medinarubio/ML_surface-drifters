@@ -55,6 +55,7 @@ def power_spectrum(datatree, vars):
         deltat=ds['time'].diff("time").dt.total_seconds().mean().values
         normalised=(ds[vars].values-np.mean(ds[vars].values))/np.std(ds[vars].values)
         period, coi, power, freqs, =Wavelet_transform(normalised, deltat)
+        
         fft_power = np.abs(np.fft.fft(ds[vars].values))**2
         fft_freqs = np.fft.fftfreq(len(ds[vars].values), d=deltat)
         # Append the results to the dataframe
@@ -160,6 +161,8 @@ def plot_Fourier_Wavelet(pw, dt, name_fig='Wavelet_Fourier', output_path=None):
                     fft_power.min(), fft_power.max(),
                     where=(fft_freqs >=3.8645 - dy) & (fft_freqs <=3.8645 + dy),
                     color='gold', alpha=0.3, label='M4')
+    
+    
     ax[0].fill_betweenx(fft_freqs,
                     fft_power.min(), fft_power.max(),
                     where=(fft_freqs >= 1.622 - dy) & (fft_freqs <=1.622 + dy),
