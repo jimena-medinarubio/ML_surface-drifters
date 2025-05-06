@@ -3,6 +3,7 @@ from pathlib import Path
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
+import pickle
 from config import MODELS_DIR, PROCESSED_DATA_DIR, DATA_DIR,  PROJ_ROOT
 from sklearn.preprocessing import StandardScaler
 import seaborn as sns
@@ -118,14 +119,21 @@ def RF_regression(X, y, block, y_vars_name=None, ntrees=100, plot=False, calcula
     if plot==True:
         if 'Zonal Residual' in y_vars_name:
             l=r'$\tilde{U}_d$'
+            units=fr'[$m \, s^{{-1}}$]'
         elif 'Meridional Residual' in y_vars_name:
             l=r'$\tilde{V}_d$'
+            units=fr'[$m \, s^{{-1}}$]'
         elif 'Zonal velocity' in y_vars_name:
             l='$U_d$'
+            units=fr'[$m \, s^{{-1}}$]'
         elif 'Meridional velocity' in y_vars_name:
             l='$V_d$'
-        ax.set_xlabel(rf'Observed {l} [$m \, s^{{-1}}$]', fontsize=14)
-        ax.set_ylabel(rf'Predicted {l} [$m \, s^{{-1}}$]', fontsize=14)
+            units=fr'[$m \, s^{{-1}}$]'
+        else:
+            l='$F$'
+            units=''
+        ax.set_xlabel(rf'Observed {l} {units}', fontsize=14)
+        ax.set_ylabel(rf'Predicted {l} {units}', fontsize=14)
         ax.legend(loc='lower right', fontsize=12)
         ax.set_title(rf'ME={me}, RMSE: {rmse}, $R^2$={r2[0]} $\pm$ {r2[1]}', fontsize=14)
         ax.tick_params(axis='both', labelsize=12)
@@ -157,9 +165,111 @@ def RF_regression(X, y, block, y_vars_name=None, ntrees=100, plot=False, calcula
     
 
     return model, stats
+
+
+def RF_regression_twostep(X, y1, y2, block, y_vars_name=None, ntrees=100, plot=False, calculate_permutation=False, output_path=None, model_name='test'):
+
+     # 1ST STEP: CLASSIFICATION  
+
+    model=RandomForestClassifier(random_state=42, n_estimators=ntrees, oob_score=True, 
+                                bootstrap=True)
+    if plot==True:
+        fig, ax = plt.subplots(figsize=(8, 6))
+        ax.plot(np.arange(np.min(y1), np.max(y1), 0.05), 
+                np.arange(np.min(y1), np.max(y1), 0.05), 
+                color='red', label='1:1', linestyle='--')
+
+    colors = sns.color_palette('bright').as_hex()
+
+    stats={'RMSE':[], 'ME':[], 'R2':[]}
+
+    for i, (train_idx, test_idx) in enumerate(block.split(X, y1)):
+        print(f'Outer loop: {i+1}')
+        
+        X_train, X_test= X.iloc[train_idx], X.iloc[test_idx]
+        y_train, y_test = y1.iloc[train_idx], y1.iloc[test_idx]
+        
+        X_train.columns = X_train.columns.astype(str)
+        model.fit(X_train, y_train)
+
+        y_test_pred = model.predict(X_test)
+        test_r2=r2_score(y_test, y_test_pred)
+
+        stats['R2'].append(test_r2)
+        stats['RMSE'].append(np.sqrt(mean_squared_error(y_test, y_test_pred)))
+        stats['ME'].append(mean_absolute_error(y_test, y_test_pred))
+
+        if plot==True:
+            sns.scatterplot(ax=ax, x=y_test, y=y_test_pred, color=colors[i], label=fr'$f_{i+1}$, $R^2$={np.round(test_r2, 2)} ')
+
+    rmse=np.round(np.mean(stats["RMSE"]), 2)
+    me=np.round(np.mean(stats["ME"]), 2)
+    r2=[np.round(np.mean(stats["R2"]), 2), np.round(np.std(stats["R2"]), 2)]
+    
+    if plot==True:
+        if 'Zonal Residual' in y_vars_name:
+            l=r'$\tilde{U}_d$'
+            units=fr'[$m \, s^{{-1}}$]'
+        elif 'Meridional Residual' in y_vars_name:
+            l=r'$\tilde{V}_d$'
+            units=fr'[$m \, s^{{-1}}$]'
+        elif 'Zonal velocity' in y_vars_name:
+            l='$U_d$'
+            units=fr'[$m \, s^{{-1}}$]'
+        elif 'Meridional velocity' in y_vars_name:
+            l='$V_d$'
+            units=fr'[$m \, s^{{-1}}$]'
+        else:
+            l='$F$'
+            units=''
+        ax.set_xlabel(rf'Observed {l} {units}', fontsize=14)
+        ax.set_ylabel(rf'Predicted {l} {units}', fontsize=14)
+        ax.legend(loc='lower right', fontsize=12)
+        ax.set_title(rf'ME={me}, RMSE: {rmse}, $R^2$={r2[0]} $\pm$ {r2[1]}', fontsize=14)
+        ax.tick_params(axis='both', labelsize=12)
+
+        if output_path is not None:
+            plt.savefig(output_path, dpi=300)
+        plt.show()
+    
+    #FIT MODEL TO ALL DATA
+    model=RandomForestClassifier(random_state=42, n_estimators=ntrees, oob_score=True, 
+                                bootstrap=True)
+    model.fit(X,y1)
+
+    if calculate_permutation==True:
+        def rmse(y_true, y_pred):
+            return np.sqrt(mean_squared_error(y_true, y_pred)) 
+        mse_scorer = make_scorer(rmse)
+        results = permutation_importance(model, X, y1 , n_repeats=10, random_state=42, scoring=mse_scorer)
+        stats['permutation_importance']=pd.DataFrame(results.importances.T, columns=X.columns)
+    else:
+        stats['permutation_importance']=[]
+    
+    oob_score = model.oob_score_
+    stats['oob_score']=oob_score
+
+    save_stats([stats], [f'RF_{model_name}_class'], PROJ_ROOT/ 'data'/ 'processed'/ 'Statistics models'/'RandomForest' )
+    save_models([model], [f'RF_{model_name}_class'], PROJ_ROOT/ 'models'/ 'RandomForest' )
+    save_permutation([stats], [f'RF_{model_name}_class'], PROJ_ROOT/ 'data'/ 'processed'/ 'PFI'/'RandomForest' )
+    
+    # 2ND STEP: REGRESSION
+
+    #reconstruct values
+    y1_pred=model.predict(X)
+    mask = y1_pred == 1
+
+    # Apply the mask to truncate X
+    X_filtered = X[mask]
+    y2_filtered = y2[mask]
+
+    RF_regression(X_filtered, y2_filtered, block, y_vars_name, ntrees, plot, calculate_permutation, output_path, model_name=f'{model_name}_regression')
+
+
+    
 #%%
 
-def SVR_regression(X, y, block, y_vars_name, kernel='rbf', plot=False, calculate_permutation=False, grid_search=False, param_grid=None, params=None):
+def SVR_regression(X, y, block, y_vars_name, kernel='rbf', plot=False, calculate_permutation=False, grid_search=False, param_grid=None, params=None, output_path=None, model_name='test'):
     
     
     if plot==True:
@@ -199,11 +309,11 @@ def SVR_regression(X, y, block, y_vars_name, kernel='rbf', plot=False, calculate
         best_model= SVR(kernel=kernel, C=params['C'], gamma=params['gamma'], epsilon=params['epsilon'])
 
     for i, (train_idx, test_idx) in enumerate(block.split(X, y)):
-        model_cv=best_model.copy()
+        model_cv=best_model
 
         print(f'Outer loop: {i+1}')
         X_train, X_test= X.iloc[train_idx], X.iloc[test_idx]
-        y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
+        y_train, y_test = y[train_idx], y[test_idx]
         model_cv.fit(X_train, y_train)
 
         y_test_pred = model_cv.predict(X_test)
@@ -213,10 +323,11 @@ def SVR_regression(X, y, block, y_vars_name, kernel='rbf', plot=False, calculate
         test_r2=r2_score(y_test_og, y_test_pred_og)
         stats['R2'].append(test_r2)
         stats['RMSE'].append(np.sqrt(mean_squared_error(y_test_og, y_test_pred_og)))
-        stats['R2'].append(mean_absolute_error(y_test_og, y_test_pred_og))
+        stats['ME'].append(mean_absolute_error(y_test_og, y_test_pred_og))
 
         if plot==True:
             sns.scatterplot(ax=ax, x=y_test_og, y=y_test_pred_og, color=colors[i], label=fr'$f_{i+1}$, $R^2$={np.round(test_r2, 2)} ')
+        
 
     rmse=np.round(np.mean(stats["RMSE"]), 3)
     me=np.round(np.mean(stats["ME"]), 3)
@@ -225,17 +336,27 @@ def SVR_regression(X, y, block, y_vars_name, kernel='rbf', plot=False, calculate
     if plot==True:
         if 'Zonal Residual' in y_vars_name:
             l=r'$\tilde{U}_d$'
+            units=fr'[$m \, s^{{-1}}$]'
         elif 'Meridional Residual' in y_vars_name:
             l=r'$\tilde{V}_d$'
-        elif 'Residual' not in y_vars_name and 'Zonal' in y_vars_name:
+            units=fr'[$m \, s^{{-1}}$]'
+        elif 'Zonal velocity' in y_vars_name:
             l='$U_d$'
-        elif 'velocity' not in y_vars_name and 'Meridional' in y_vars_name:
+            units=fr'[$m \, s^{{-1}}$]'
+        elif 'Meridional velocity' in y_vars_name:
             l='$V_d$'
-        ax.set_xlabel(rf'Observed {l} [$m \, s^{{-1}}$]', fontsize=14)
-        ax.set_ylabel(rf'Predicted {l} [$m \, s^{{-1}}$]', fontsize=14)
+            units=fr'[$m \, s^{{-1}}$]'
+        else:
+            l='$F$'
+            units=''
+        ax.set_xlabel(rf'Observed {l} {units}', fontsize=14)
+        ax.set_ylabel(rf'Predicted {l} {units}', fontsize=14)
         ax.legend(loc='lower right', fontsize=12)
         ax.set_title(rf'ME={me}, RMSE: {rmse}, $R^2$={r2[0]} $\pm$ {r2[1]}', fontsize=14)
         ax.tick_params(axis='both', labelsize=12)
+
+        if output_path is not None:
+            plt.savefig(output_path, dpi=300)
         plt.show()
     
     #FIT MODEL TO ALL DATA
@@ -246,12 +367,16 @@ def SVR_regression(X, y, block, y_vars_name, kernel='rbf', plot=False, calculate
             return np.sqrt(mean_squared_error(y_true, y_pred)) 
         mse_scorer = make_scorer(rmse)
         results = permutation_importance(best_model, X, y , n_repeats=10, random_state=42, scoring=mse_scorer)
-        stats['permutation_importance']=results.importances.T
+        stats['permutation_importance']=pd.DataFrame(results.importances.T, columns=X.columns)
     else:
         stats['permutation_importance']=[]
+
+    save_stats([stats], [f'SVR_{model_name}'], PROJ_ROOT/ 'data'/ 'processed'/ 'Statistics models'/'SVR' )
+    save_models([best_model], [f'SVR_{model_name}'], PROJ_ROOT/ 'models'/ 'SVR' )
+    save_permutation([stats], [f'SVR_{model_name}'], PROJ_ROOT/ 'data'/ 'processed'/ 'PFI'/'SVR' )
+    save_scalers( [y_scaler, X_scaler], [f'y_{model_name}', f'X_{model_name}'], PROJ_ROOT/ 'data'/ 'processed'/ 'Statistics models'/'SVR')
     
-    
-    return best_model, stats, X_scaler, y_scaler
+    return best_model, stats
 
 #%%
 def save_stats(stats_array, names, output_dir):
@@ -270,5 +395,10 @@ def save_permutation(stats_array, names, output_dir):
 def save_models(stats_array, names, output_dir):
     for i, elem in enumerate(stats_array):
         joblib.dump(elem, f"{output_dir}/{names[i]}_models.pkl")
+
+def save_scalers(scalers, names, output_dir):
+    for i, elem in enumerate(scalers):
+        with open(f'{output_dir}/{names[i]}_scaler.pkl', 'wb') as file:
+            pickle.dump(elem, file)
 
 # %%
