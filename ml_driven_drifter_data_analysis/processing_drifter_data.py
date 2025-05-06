@@ -5,15 +5,19 @@ import pandas as pd
 from pathlib import Path
 from haversine import haversine, Unit
 import matplotlib.pyplot as plt
-from plots import plot_trajs
+
 from scipy.ndimage import gaussian_filter1d
 #%%
+import sys
+sys.path.append("..")
+from plots import plot_trajs
 PROJ_ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = PROJ_ROOT / "data"
 
-dt_og=xr.open_datatree(f'{DATA_DIR}/interim/preprocessed_drifter_data.nc')
 
 #%%
+dt_og=xr.open_datatree(f'{DATA_DIR}/interim/preprocessed_drifter_data.nc')
+
 df_drifters = pd.read_csv(f'{PROJ_ROOT}/references/drifters_info.csv',  delimiter=';', dtype={'ID': str})
 color_dict={str(df_drifters['ID'].values[i]): df_drifters['color'].values[i] for i in range(len(df_drifters['ID'].values))}
 plot_trajs(dt_og, 'trajectories', palette=color_dict, output_format='png')
@@ -73,9 +77,9 @@ def calculate_velocities(dt, method='cds'):
             vel_y_central = (vel_y[1:] + vel_y[:-1]) / 2
             speeds_central = (speeds[1:] + speeds[:-1]) / 2
 
-            vel_x_central=np.insert(vel_x_central, [0, -1], 0)
-            vel_y_central=np.insert(vel_y_central, [0], 0)
-            speeds_central=np.insert(speeds_central, [0,], 0)
+            vel_x_central=np.insert(vel_x_central, [0, -1], [vel_x_central[0], vel_x_central[-1]])
+            vel_y_central=np.insert(vel_y_central, [0], vel_y_central[0])
+            speeds_central=np.insert(speeds_central, [0,], speeds_central[0])
 
             mutable_ds["vx"] =  xr.DataArray(vel_x_central, dims="time", coords={"time": mutable_ds["time"]})
             mutable_ds["vy"] = xr.DataArray(vel_y_central, dims="time", coords={"time": mutable_ds["time"]})

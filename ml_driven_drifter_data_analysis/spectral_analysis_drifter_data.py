@@ -12,7 +12,7 @@ from scipy.interpolate import interp1d
 import pandas as pd
 
 #%%
-PROJ_ROOT = Path(__file__).resolve().parents[1]
+PROJ_ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = PROJ_ROOT / "data"
 
 datatree=xr.open_datatree(f'{DATA_DIR}/interim/processed_drifter_data.nc')
@@ -112,7 +112,7 @@ def plot_single_Wavelet_period(pw, dt, drifter_id):
 
 def plot_Fourier_Wavelet(pw, dt, name_fig='Wavelet_Fourier', output_path=None):
 
-    t= (pw['time'][0] - pw['time'][0][0]) / np.timedelta64(1, 's')
+    t= (pw['time'][0] - pw['time'][0][0]) / np.timedelta64(1, 's')/3600/24
     power=pw['power'].mean(axis=0)
     period=pw['period'].mean(axis=0)
     freqs=pw['freq'].mean(axis=0)
@@ -126,7 +126,9 @@ def plot_Fourier_Wavelet(pw, dt, name_fig='Wavelet_Fourier', output_path=None):
     levels = [0.0625, 0.125, 0.25, 0.5, 1, 2, 4, 8, 16,  24, 32, 40]
     c=ax[1].contourf(t, freqs*3600*24, np.log2(power), np.log2(levels), shading='gouraud',
                     extend='both', cmap=cmocean.cm.balance)
-    plt.colorbar(c, ax=ax[1], label='PSD [$log_{10}m^2 s^{-2} cpd^{-1}]$')
+    cbar=plt.colorbar(c, ax=ax[1], label='PSD [$log_{10}m^2 s^{-2} cpd^{-1}]$')
+    cbar.set_label('PSD [$log_{10}m^2 s^{-2} cpd^{-1}]$', fontsize=14)
+
     
     extent = [t.min(), t.max(), np.min(freqs)*3600*24, np.max(freqs)*3600*24]
     
@@ -141,9 +143,11 @@ def plot_Fourier_Wavelet(pw, dt, name_fig='Wavelet_Fourier', output_path=None):
     ax[1].plot(t , np.full(len(t),  1.622), label='Inertial Frequency', linestyle='dashdot', color='#FF00FF', linewidth=2)#1f77b4\n",
     ax[1].set_ylim(0, 5)
     ax[1].set_xlim(0, np.max(t))
+    ax[1].tick_params(axis='both', which='major', labelsize=14)  # x and y ticks fontsize
+    ax[1].ticklabel_format(style='plain', axis='both')
 
    # ax[1].set_ylabel('Period (hrs)')\n",
-    ax[1].set_xlabel('Time since release [days]')
+    ax[1].set_xlabel('Time since release [days]', fontsize=14)
     #ax[1].set_title('Wavelet Power Spectrum')
     dy=0.05
     
@@ -168,17 +172,19 @@ def plot_Fourier_Wavelet(pw, dt, name_fig='Wavelet_Fourier', output_path=None):
                     where=(fft_freqs >= 1.622 - dy) & (fft_freqs <=1.622 + dy),
                     color='#FF00FF', alpha=0.3, label='Inertial period')
     ax[0].plot(fft_power, fft_freqs, color='black', zorder=2, linewidth=1)
-    ax[0].set_ylabel('Frequency [cpd]')
-    ax[0].set_xlabel('PSD [$m^2 s^{-2} cpd^{-1}$]')
+    ax[0].set_ylabel('Frequency [cpd]', fontsize=14)
+    ax[0].set_xlabel('PSD [$m^2 s^{-2} cpd^{-1}$]', fontsize=14)
     ax[0].set_ylim(0, 5)
     "    # Reverse the x-axis limits for the mirrored effect\n",
     ax[0].set_xlim(300, 0)  # From max power to 0\n",
     #ax[0].set_title('FFT')
-    ax[0].legend()
+    ax[0].legend(fontsize=14)
+    ax[0].tick_params(axis='both', which='major', labelsize=14)  # x and y ticks fontsize
+
     plt.tight_layout()  # Adjust layout to prevent overlap\n",
 
     if output_path is None:
-        PROJ_ROOT = Path(__file__).resolve().parents[1]
+        PROJ_ROOT = Path(__file__).resolve().parents[2]
         FIGURES_DIR = PROJ_ROOT / "reports" / "figures"
         output_path = FIGURES_DIR / f'{name_fig}.svg'
     plt.savefig(output_path, dpi=300)
