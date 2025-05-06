@@ -61,39 +61,6 @@ def linear_regression(X, y):
 
     return beta_de_standardized, [standard_error, r2, rmse]
 
-def linear_regression2(X, y):
-    model = LinearRegression()
-    #model=LinearRegression()
-   # model=Lasso(alpha=0.1)
-
-
-    model.fit(X.values.reshape(-1, 1), y.values.reshape(-1, 1))
-
-    # Step 3: De-standardize the coefficient
-    # Multiply the coefficient by the ratio of std of original X and y
-    beta_standardized = model.coef_[0]  # Coefficient after standardization
-# Predicted values and de-standardized y
-    y_pred = model.predict(X.values.reshape(-1, 1))
-    
-    # Calculate R^2 and RMSE
-    r2 = r2_score(y.values.reshape(-1, 1), y_pred)
-    rmse = np.sqrt(root_mean_squared_error(y.values.reshape(-1, 1), y_pred))
-
-    # Calculate the residuals
-    residuals = y.values - y_pred
-
-    # Calculate the variance of the residuals
-    residual_variance = np.var(residuals)
-
-    # Compute the covariance matrix (this is for a simple linear regression with one predictor)
-    X_design_matrix = np.c_[np.ones(X.shape[0]), X]
-    covariance_matrix = residual_variance * np.linalg.inv(X_design_matrix.T @ X_design_matrix)
-
-    # Standard error of the coefficient (just for the single coefficient in simple linear regression)
-    standard_error = np.sqrt(covariance_matrix[1, 1])
-
-    return beta_standardized, [standard_error, r2, rmse]
-
 def select_variables(features, velocity_component='vx', dir='U', relative_wind=False):
 
     if relative_wind==False:
