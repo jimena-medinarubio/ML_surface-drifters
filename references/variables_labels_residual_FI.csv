@@ -1,0 +1,5 @@
+;U_lp;V_lp;U_hp;V_hp;U10;Ustokes;V10;Vstokes;Tp_x;Tp_y;Hs_wind_x;Hs_swell_x;Hs_swell_secondary_x;Hs_wind_y;Hs_swell_y;Hs_swell_secondary_y;flipping_index_scaled
+label;$U_{o}^{LP}$;$V_{o}^{LP}$;$U_{o}^{HP}$;$V_{o}^{HP}$;$U_{w}$;$U_{s}$;$V_{w}$;$V_{s}$;$T_p^x$;$T_p^y$;$H_s^{wind, x}$;$H_s^{1p swell, x}$;$H_s^{2p swell, x}$;$H_s^{wind, y}$;$H_s^{1p swell, y}$;$H_s^{2p swell, y}$;$F$
+units;$m \, s^{{-1}}$;$m \, s^{{-1}}$;$m \, s^{{-1}}$;$m \, s^{{-1}}$;$m \, s^{{-1}}$;$m \, s^{{-1}}$;$m \, s^{{-1}}$;$m \, s^{{-1}}$;s;s;m;m;m;m;m;m;-
+order;5;3;16;15;0;2;1;4;9;7;11;8;14;6;10;13;12
+category;ocean;ocean;ocean;ocean;wind;waves;wind;waves;waves;waves;waves;waves;waves;waves;waves;waves;fi
