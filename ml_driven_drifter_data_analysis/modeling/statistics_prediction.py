@@ -26,10 +26,11 @@ dir=DATA_DIR/'processed'/'prediction'
 
 pred_dict={}
 #drifter.name:{} for drifter in dt_obs.leaves 
-model_analysis=['RF', 'RF_FI', 'RF_FI_twostep','RF_residual', 'RF_coords', 'RF_depth', 'SVR', 'LR', 'LR_rw', 'sigmoid']
+model_analysis=['RF', 'RF_FI', 'RF_FI_twostep','RF_residual', 'RF_coords', 'RF_depth', 'SVR', 'LR', 'LR_rw', 'sigmoid', 'charnock']
 
 for drifter in dt_obs.leaves:
     model_datasets={}
+    
     for model in model_analysis:
         with open(f"{dir}/{drifter.name}/{model}.pkl", "rb") as f:
             data=pickle.load(f)
@@ -40,24 +41,8 @@ dt_pred=xr.DataTree.from_dict(pred_dict)
 
 #%%
 
-dt_pred.to_netcdf(f'{DATA_DIR}/interim/predicted_trajectories.nc')
-# %%
-"""
-for drifter in dt_obs:
-    dt_pred[drifter]['obs']=xr.Dataset()
-    for elem in ['lon', 'lat']:
+#dt_pred.to_netcdf(f'{DATA_DIR}/interim/predicted_trajectories.nc')
 
-        l_obs=pd.Series(dt_obs[drifter][elem], index=pd.to_datetime(dt_obs[drifter]['time']))
-        l_pred=pd.Series(dt_pred[drifter]['RF'][elem], index=pd.to_datetime(dt_pred[drifter]['RF']['time']))
-        
-        l_reindex=l_pred.reindex(l_obs.index, method='nearest')
-        
-        dt_pred[drifter]['obs'][f'{elem}']=xr.DataArray(l_obs, dims=['time'], coords={'time': l_obs.index})
-
-        for model in dt_pred[drifter]:
-            l_pred=pd.Series(dt_pred[drifter][model][elem], index=pd.to_datetime(dt_pred[drifter][model]['time']))
-            dt_pred[drifter][model][f'{elem}_resampled']=xr.DataArray(l_reindex, dims=['time'], coords={'time': l_reindex.index})"
-"""
 #%%
 
 
@@ -188,6 +173,8 @@ def plot_points_and_avg(trajectories, colors, property='MCSD', ylabel='Mean Cumu
 
     plt.xlabel(ylabel, fontsize=14)
     plt.xticks(fontsize=14)
+    if property=='MCSD':
+        plt.xlim(0, np.max([np.max(values[i]) for i in range(len(data))]) + 10)
     plt.legend( fontsize=14, loc='best')
 
     plt.savefig(f'{PROJ_ROOT}/reports/figures/prediction/{property}_{name}.svg', dpi=300, bbox_inches='tight')
@@ -234,7 +221,37 @@ def plot_prediction(drifter, labels, dt_obs, dt_pred, name=None):
     plt.xlim(3, 9)
     plt.ylim(53, 56)
     fig.patch.set_alpha(0.0)         # Transparent figure background
-    plt.savefig(f'{PROJ_ROOT}/reports/figures/prediction/trajs_{name}.png', dpi=300, bbox_inches='tight', )
+    plt.savefig(f'{PROJ_ROOT}/reports/figures/prediction/trajs_{name}.svg', dpi=300, bbox_inches='tight', )
+
+    # Show plot
+    plt.show()
+
+def plot_background(drifter, labels, dt_obs, dt_pred, name=None):
+
+    fig, ax = plt.subplots(figsize=(14, 12), subplot_kw={'projection': ccrs.PlateCarree()})
+
+    ax.add_feature(cfeature.LAND, edgecolor='w', facecolor='lightgrey')  # Specify edgecolor and facecolor
+
+    ax.add_feature(cfeature.COASTLINE, color='k')
+    ax.add_feature(cfeature.BORDERS, linestyle=':')
+    # Set the labels for latitude and longitude
+    ax.set_xlabel('Longitude', fontsize=14)
+    ax.set_ylabel('Latitude', fontsize=14)
+    # Set tick label font size
+    ax.tick_params(axis='both', labelsize=12)  # Change label size for both x and y axes
+
+    # Add gridlines
+    gridlines=ax.gridlines(draw_labels=True, crs=ccrs.PlateCarree(), linestyle='--')
+    gridlines.xlabel_style = {'size': 14}  # Font size for longitude labels
+    gridlines.ylabel_style = {'size': 14}  # Font size for latitude labels
+    gridlines.right_labels=False
+    gridlines.top_labels=False
+    plt.legend(fontsize=14, loc='best')
+
+    plt.xlim(3, 9)
+    plt.ylim(53, 56)
+    fig.patch.set_alpha(0.0)         # Transparent figure background
+    plt.savefig(f'{PROJ_ROOT}/reports/figures/prediction/trajs_background.png', dpi=300, bbox_inches='tight', )
 
     # Show plot
     plt.show()
@@ -292,6 +309,7 @@ def D_timeseries(labels, dt_pred, dt_obs, name=None, xlim=None):
     # Loop over all models
 
     models=[]
+    lines=[]
     for model in labels.keys():
         aligned_D = []
 
@@ -326,11 +344,12 @@ def D_timeseries(labels, dt_pred, dt_obs, name=None, xlim=None):
             # Plot
             plt.plot(common_days, D_mean, label=labels[model][0], color=labels[model][1], linewidth=2)
             models.append(D_mean)
+            lines.append(aligned_D)
     plt.legend(fontsize=14, loc='upper right')
 
     plt.xlabel('Time since release [days]', fontsize=14)
     plt.ylabel('Cumulative Separation Distance [km]', fontsize=14)
-    plt.ylim(0, 170)
+    plt.ylim(0, 150)
     plt.xlim(0, xlim)
 
     zoom_xlim = [0, 7]  # Define the x-limits for the zoom window (adjust these values based on your data)
@@ -347,6 +366,8 @@ def D_timeseries(labels, dt_pred, dt_obs, name=None, xlim=None):
     # Plot the zoomed-in region
     for i, model in enumerate(labels.keys()):
         axins.plot(common_days, models[i], color=labels[model][1], linewidth=2,)
+        for line in lines[i]:
+            axins.plot(common_days, line, alpha=0.1, color=labels[model][1], linewidth=2)
 
     axins.set_xlim(zoom_xlim)
     axins.set_ylim(zoom_ylim)
@@ -375,8 +396,7 @@ for drifter in dt_pred:
 
         # Select predictions at the closest times
         predictions = dt_pred[drifter][model].sel(time=valid_obs_times, method='nearest')
-        
-        print(predictions.time[-10:])
+    
        
         cumd, d=MCSD(predictions, dt_obs[drifter], residual=res)
         ss=LiuWeisberg_ss(predictions, dt_obs[drifter],)
@@ -387,21 +407,28 @@ for drifter in dt_pred:
 # %%
 labels=[ 'Support vector regression','Random forest', 'Linear regression',]
 time=dt_pred['0510']['RF']['time'].values
-plot_points_and_avg(dt_pred, [ '#067BC2','#009988',  '#DDAA33', ], 'MCSD', order=['SVR', 'RF',  'LR',], labels=labels, name='models')
+plot_points_and_avg(dt_pred, [ '#9ab9f9','#009988',  '#DDAA33', ], 'MCSD', order=['SVR', 'RF',  'LR',], labels=labels, name='models')
 # %%
-labels=['Total velocity', 'Total velocity, +Flipping Index',  'Total velocity, +lat & lon', 'Total velocity, +bathymetry', 'Residual velocity'][::-1]
-plot_points_and_avg(dt_pred, [ '#009988', 'grey',  '#33BBEE', '#332288', '#AA4499' ][::-1], 'MCSD', order=[ 'RF', 'RF_FI_twostep', 'RF_coords', 'RF_depth', 'RF_residual'][::-1], labels=labels, name='RF_tests')
+labels=['Original', '+Flipping Index',  '+Lat & Lon', '+Bathymetry'][::-1]
+plot_points_and_avg(dt_pred, [ '#009988', 'grey',  '#AA4499', '#332288',  ][::-1], 'MCSD', order=[ 'RF', 'RF_FI_twostep', 'RF_coords', 'RF_depth', ][::-1], labels=labels, name='RF_tests')
 # %%
-labels=['Sigmoid function: wind', 'Linear function: relative wind', 'Linear function: wind' ]
-plot_points_and_avg(dt_pred, [ '#4BC6B9', '#EE3377', '#DDAA33', ], 'MCSD', order=['sigmoid', 'LR_rw', 'LR',], labels=labels, name='LR_tests')
+labels=['Charnock parametrisation', 'Sigmoid function: wind', 'Linear function: relative wind', 'Linear function: wind' ]
+plot_points_and_avg(dt_pred, ['#6A041D', '#4BC6B9', '#EE3377', '#DDAA33', ], 'MCSD', order=['charnock', 'sigmoid', 'LR_rw', 'LR',], labels=labels, name='LR_tests_charnock')
 #%%
 import cartopy.feature as cfeature
 import cartopy.crs as ccrs
 
-drifter='2500'
-labels={'LR': ['Linear regression, MCSD=30km','#DDAA33'],
-        'RF': ['Random forest: MCSD=12km','#009988'] , 
-         'SVR': ['Support vector regression: MCSD: 15km', '#067BC2']}
+drifter='3510'
+labels={'LR': ['Linear regression, MCSD=27km','#DDAA33'],
+        'RF': ['Random forest: MCSD=11km','#009988'] , 
+         'SVR': ['Support vector regression: MCSD: 14km', '#9ab9f9']}
+
+plot_prediction(drifter, labels, dt_obs, dt_pred, name='models_poster')
+
+#%%
+labels={'LR': ['Linear regression','#DDAA33'],
+        'RF': ['Random forest','#009988'] , 
+         'SVR': ['Support vector regression', '#9ab9f9']}
 
 plot_prediction(drifter, labels, dt_obs, dt_pred, name='models')
 
@@ -421,12 +448,13 @@ plot_prediction(drifter, labels, dt_obs, dt_pred, name='RF_tests')
 drifter='0510'
 labels={'LR': ['Linear function: wind','#DDAA33'],
         'LR_rw': ['Linear function: relative wind','#C44775'] , 
-          'sigmoid': ['Sigmoid function: wind','#4BC6B9'] }
+          'sigmoid': ['Sigmoid function: wind','#4BC6B9'],
+           'charnock': ['Charnock param: wind','red'] }
 plot_prediction(drifter, labels, dt_obs, dt_pred, name='LR_tests')
 
 
 # %%
-
+#   ss
 labels={'LR': ['Linear Regression','#DDAA33'],
         'RF': ['Random Forest','#009988'] , 
          'SVR': ['Support Vector Regression', '#0077BB']}
@@ -471,7 +499,7 @@ plt.title('Linear regression', fontsize=16)
 
 labels={'LR': ['Linear regression','#DDAA33'],
         'RF': ['Random forest','#009988'] , 
-         'SVR': ['Support vector regression', '#067BC2']}
+         'SVR': ['Support vector regression', '#9ab9f9']}
 
 mod=D_timeseries(labels, dt_pred, dt_obs, name='models')
 #%%
@@ -496,13 +524,21 @@ plot_points_and_avg(dt_pred, [ '#0077BB','#009988',  '#DDAA33', ], 'ss', order=[
 
 
 # %%
-labels={'RF': ['Total velocity','#009988'] , 
+labels={'RF': ['Original','#009988'] , 
        # 'RF_FI': ['Total velocity, +Flipping Index',] , 
-         'RF_FI_twostep': ['Total velocity, +Flipping Index','grey'] , 
-        'RF_coords': ['Total velocity, +lat & lon','#33BBEE'] , 
-        'RF_depth': ['Total velocity, +bathymetry','#332288'] ,
-         'RF_residual': [ 'Residual velocity','#AA4499'] ,  }
+         'RF_FI_twostep': ['+Flipping Index','grey'] , 
+        'RF_coords': ['+Lat & lon','#AA4499'] , 
+        'RF_depth': ['+Bathymetry','#332288'] ,}
+       #  'RF_residual': [ 'Residual velocity','#AA4499'] ,  }
 
 mod=D_timeseries(labels, dt_pred, dt_obs, name='test_RF')
+
+# %%
+
+# %%
+
+labels=[ 'Support vector regression','Random forest', 'Linear regression',]
+time=dt_pred['0510']['RF']['time'].values
+plot_points_and_avg(dt_pred, [ '#9ab9f9','#009988',  '#DDAA33', ], 'ss', order=['SVR', 'RF',  'LR',], labels=labels, name='models_ss', ylabel='Liu-Weisberg skill score')
 
 # %%
