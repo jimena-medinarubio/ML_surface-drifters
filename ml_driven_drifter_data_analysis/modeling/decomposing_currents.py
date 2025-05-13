@@ -3,7 +3,7 @@ import xarray as xr
 import numpy as np
 from config import DATA_DIR
 #%%
-curr_file=f'{DATA_DIR}/external/ocean_curr_extended.nc' 
+curr_file=f'{DATA_DIR}/external/extended_curr_surface.nc' 
 
 
 oc=xr.open_dataset(curr_file)
@@ -27,6 +27,6 @@ oc['uo_lp'], oc['u_tides'] = low_pass_moving_window(oc['uo'], dt=np.timedelta64(
 
 # Decompose vo into low-pass and tidal components
 oc['vo_lp'], oc['v_tides'] = low_pass_moving_window(oc['vo'],  dt=np.timedelta64(15, 'm') , time_window_hours=24.83)
-new_curr_files=f'{DATA_DIR}/external/decomposed_ocean_currents_extended.nc'
+new_curr_files=f'{DATA_DIR}/external/decomposed_extended_curr_surface.nc'
 oc.to_netcdf(new_curr_files)
 # %%
