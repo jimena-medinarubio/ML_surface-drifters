@@ -209,8 +209,8 @@ def recreate_trajs_ML(ds, delta_t_minutes, trajs_days, fieldsets, initial_times,
 #upload data
 wave_file=f'{DATA_DIR}/external/waves-wind-swell.nc' 
 wind_file=f'{DATA_DIR}/external/wind.nc' 
-curr_file=f'{DATA_DIR}/external/ocean_curr_extended.nc' 
-curr_file_decomposed=f'{DATA_DIR}/external/decomposed_ocean_currents_extended.nc' 
+curr_file=f'{DATA_DIR}/external/extended_curr_surface.nc' 
+curr_file_decomposed=f'{DATA_DIR}/external/decomposed_extended_curr_surface.nc' 
 wave_variables=pd.read_csv(f'{PROJ_ROOT}/references/waves_dataset.csv')
 bathymetry_file=f'{DATA_DIR}/external/bathymetry.nc' 
 #%%
@@ -226,10 +226,10 @@ bathymetry_field=create_static_fieldset(bathymetry_file, ['deptho'], ['z'])
 #prediction settings
 datatree = xr.open_datatree(f'{DATA_DIR}/interim/processed_drifter_data.nc')
 
-dt=3 #minutes
+dt=1 #minutes
 days=60
 #%%
-
+import pickle
 #LINEAR REGRESSION SETTINGGS
 fieldsets=[curr_field, wind_field, wave_field]
 time_starts=[xr.open_dataset(curr_file)['time'][0], xr.open_dataset(wind_file)['valid_time'][0], xr.open_dataset(wave_file)['time'][0]]
@@ -260,11 +260,12 @@ for i, node in enumerate(datatree.leaves):
             pickle.dump(pred, f)
 
 #%%
+import pickle
 # MACHINE LEARNING MODEL
 ML_model_settings={'RF': {'files':[f"{MODELS_DIR}/RandomForest/RF_Ud_models.pkl", f"{MODELS_DIR}/RandomForest/RF_Vd_models.pkl"], 'uscale':[None, None], 'vscale':[None, None],  'flipping': False},
-                    'RF_FI':{'files':[f"{MODELS_DIR}/RandomForest/RF_Ud_FI_models.pkl", f"{MODELS_DIR}/RandomForest/RF_Vd_FI_models.pkl", f"{MODELS_DIR}/RandomForest/RF_FI_fit_models.pkl"], 'uscale':[None, None], 'vscale':[None, None], 'flipping': True},
-                    'RF_coords': {'files':[f"{MODELS_DIR}/RandomForest/RF_Ud_coords_models.pkl", f"{MODELS_DIR}/RandomForest/RF_Vd_coords_models.pkl"], 'uscale':[None, None], 'vscale':[None, None], 'flipping': False},
-                    'RF_depth': {'files':[f"{MODELS_DIR}/RandomForest/RF_Ud_depth_models.pkl", f"{MODELS_DIR}/RandomForest/RF_Vd_depth_models.pkl"], 'uscale':[None, None], 'vscale':[None, None], 'flipping': False},
+                  #  'RF_FI':{'files':[f"{MODELS_DIR}/RandomForest/RF_Ud_FI_models.pkl", f"{MODELS_DIR}/RandomForest/RF_Vd_FI_models.pkl", f"{MODELS_DIR}/RandomForest/RF_FI_fit_models.pkl"], 'uscale':[None, None], 'vscale':[None, None], 'flipping': True},
+                  #  'RF_coords': {'files':[f"{MODELS_DIR}/RandomForest/RF_Ud_coords_models.pkl", f"{MODELS_DIR}/RandomForest/RF_Vd_coords_models.pkl"], 'uscale':[None, None], 'vscale':[None, None], 'flipping': False},
+                   # 'RF_depth': {'files':[f"{MODELS_DIR}/RandomForest/RF_Ud_depth_models.pkl", f"{MODELS_DIR}/RandomForest/RF_Vd_depth_models.pkl"], 'uscale':[None, None], 'vscale':[None, None], 'flipping': False},
                      'SVR': {'files':[f"{MODELS_DIR}/SVR/SVR_Ud_models.pkl", f"{MODELS_DIR}/SVR/SVR_Vd_models.pkl"], 'uscale':[f"{DATA_DIR}/processed/Statistics models/SVR/X_Ud_scaler.pkl", f"{DATA_DIR}/processed/Statistics models/SVR/y_Ud_scaler.pkl"], 
                                     'vscale':[f"{DATA_DIR}/processed/Statistics models/SVR/X_Vd_scaler.pkl", f"{DATA_DIR}/processed/Statistics models/SVR/y_Vd_scaler.pkl"], 'flipping': False }
 }
@@ -282,7 +283,6 @@ variables_ML_depth=[['U_lp', 'V_lp', 'U_hp', 'V_hp'], ['U10', 'V10'], wave_varia
 
 #%%
 
-import pickle 
 save_dir=f'{DATA_DIR}/processed/prediction'
 
 for i, node in enumerate(datatree.leaves):
@@ -310,3 +310,4 @@ for i, node in enumerate(datatree.leaves):
         with open(f"{save_dir}/{drifter}/{model}.pkl", "wb") as f:
             pickle.dump(pred, f)
        # predicted_dict[drifter][model]=pred
+# %%
