@@ -190,13 +190,13 @@ def plot_trajs_bathymetry_int(
     # Main map region (German Bight)
     ax_inset.set_extent([3, 9, 53, 56], crs=ccrs.PlateCarree())
 
-    gb_bathy = german_bight_bathymetry['deptho'].values
+    gb_bathy = -german_bight_bathymetry['deptho'].values
     gb_bathy[np.isnan(gb_bathy)] = 0
     mesh = ax_inset.pcolormesh(
         german_bight_bathymetry['longitude'], 
         german_bight_bathymetry['latitude'], 
         gb_bathy, 
-        cmap=cmocean.cm.ice_r,
+        cmap=cmocean.cm.ice,
         transform=ccrs.PlateCarree(),
         zorder=1
     )
@@ -389,7 +389,7 @@ def plot_trajs_bathymetry_poster(
 
 # %%
 
-PROJ_ROOT = Path(__file__).resolve().parents[1]
+PROJ_ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = PROJ_ROOT / "data"
 
 bathymetry_file=xr.open_dataset(f'{DATA_DIR}/external/bathymetry.nc')
@@ -417,7 +417,7 @@ palette = ["#101088","#eb9cc0",
 
 
 "#d699ff"][::-1]
-plot_trajs_bathymetry_int(dt_og, bathymetry_file, bathymetry_eu, 'trajs_bathymetry-EU2', output_path=None, palette=palette, output_format='png')
+plot_trajs_bathymetry_int(dt_og, bathymetry_file, bathymetry_eu, 'trajs_bathymetry-EU', output_path=None, palette=palette, output_format='svg')
 
 # %%
 plot_trajs_bathymetry_poster(dt_og, bathymetry_file, bathymetry_eu, 'trajs_bathymetry-EU-poster', output_path=None, palette=palette, output_format='svg')
