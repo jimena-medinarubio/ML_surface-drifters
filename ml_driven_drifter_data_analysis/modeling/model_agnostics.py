@@ -134,9 +134,10 @@ def plot_single_pfi(importances_u, stats_u, labels, name, output_path, output_fo
 # %%
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
 
 def plot_pfi_shadow(importances_u, importances_v, stats_u, stats_v, labels, output_path, 
-             residual=True, output_format='svg', bar_width=0.5):
+             residual=True, output_format='svg', bar_width=0.5, model_name='RF'):
     """
     Plots the Permutation Feature Importance (PFI) as a bar chart for two velocity components (U and V),
     with optional residual-based labeling and background shading for different feature groups.
@@ -162,6 +163,7 @@ def plot_pfi_shadow(importances_u, importances_v, stats_u, stats_v, labels, outp
     categories = labels.loc['category', ordered_vars]
     
     category_colors = {"wind": "#FBD1A2", "ocean": '#00B2CA', "waves": "#7DCFB6", 'fi': '#8E5572'}
+    category_names = {"wind": "Wind", "ocean": 'Ocean currents', "waves": "Waves", 'fi': 'Flipping Index'}
 
     ## Bar plot data
     x_offsets = np.arange(len(ordered_vars)) * 1.5
@@ -174,6 +176,8 @@ def plot_pfi_shadow(importances_u, importances_v, stats_u, stats_v, labels, outp
         errors_V.append(np.std(importances_v[var]))
     
     # Background shading by category
+    cats_used=np.unique([categories[var] for var in ordered_vars])
+    print(cats_used)
     for i, var in enumerate(ordered_vars):
         plt.axvspan(i * 1.5 - bar_width, i * 1.5 + bar_width, color=category_colors[categories[var]], alpha=0.35)
     
@@ -195,9 +199,27 @@ def plot_pfi_shadow(importances_u, importances_v, stats_u, stats_v, labels, outp
     plt.xticks(x_offsets, labels.loc['label', ordered_vars], rotation=45, ha='center', fontsize=16)
     
 
-
-    plt.legend(loc='upper right', fontsize=14)
+    plt.title(model_name, fontsize=16)
+    plt.xlim(x_offsets[0] - bar_width-0.3, x_offsets[-1] + bar_width+0.3)
     plt.tight_layout()
+
+
+    category_patches = [Patch(facecolor=category_colors[color], edgecolor='none', alpha=0.35, label=category_names[color]) 
+                    for color in category_colors.keys() if color in cats_used]
+    
+    # First legend for the bars
+    bar_legend = plt.legend(loc='upper right', fontsize=14)
+
+    # Add background shading legend outside the plot
+    category_legend = plt.legend(handles=category_patches, 
+                                loc='center left', 
+                                bbox_to_anchor=(1.02, 0.8),
+                                fontsize=13, title_fontsize=14)
+
+    # Add both legends
+    plt.gca().add_artist(bar_legend)
+
+
     plt.savefig(f'{output_path}.{output_format}', dpi=300)
     plt.show()
 #%%
