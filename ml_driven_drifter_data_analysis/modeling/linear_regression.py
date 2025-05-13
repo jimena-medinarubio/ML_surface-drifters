@@ -40,11 +40,11 @@ def linear_regression(X, y):
     beta_standardized = model.coef_[0]  # Coefficient after standardization
     beta_de_standardized = beta_standardized * (scaler_y.scale_/scaler_X.scale_ )
 # Predicted values and de-standardized y
-    y_pred = model.predict(X_standardized) * scaler_y.scale_ + np.mean(y)
+    y_pred = scaler_y.inverse_transform(model.predict(X_standardized))
     
     # Calculate R^2 and RMSE
-    r2 = r2_score(y, y_pred)
-    rmse = np.sqrt(root_mean_squared_error(y, y_pred))
+    r2 = r2_score(y_standardized, model.predict(X_standardized))
+    rmse = np.sqrt(root_mean_squared_error(y_standardized, model.predict(X_standardized)))
 
     # Calculate the residuals
     residuals = y.values - y_pred
@@ -59,7 +59,7 @@ def linear_regression(X, y):
     # Standard error of the coefficient (just for the single coefficient in simple linear regression)
     standard_error = np.sqrt(covariance_matrix[1, 1])
 
-    return beta_de_standardized, [standard_error, r2, rmse]
+    return beta_de_standardized, [standard_error, r2, rmse*np.std(y.values)+np.mean(y.values)]
 
 def select_variables(features, velocity_component='vx', dir='U', relative_wind=False):
 
@@ -117,6 +117,8 @@ if __name__ == "__main__":
     Xv, yv= select_variables(features, 'vy', 'V', relative_wind=False )
     coeff_u, r2u= linear_regression(Xu, yu)
     coeff_v, r2v= linear_regression(Xv, yv)
+
+    print(coeff_v, r2v)
  #   coeffsu, coeffsv= calculate_uncertainties_fit(features, False)
 
   #  coeffs_total, r2_total= linear_regression(pd.concat([Xu, Xv]), pd.concat([yu, yv]))
@@ -147,7 +149,7 @@ def fit_sigmoid(X, y):
     X = np.array(X)
     y = np.array(y)
     # Initial parameter guess: [L, x0, k]
-    p0 = [max(y), np.median(X), 1, 0]
+    p0 = [max(y), np.median(X), 1, 0.001]
     # Fit the curve
     popt, pcov= curve_fit(sigmoid, X, y, p0, maxfev=10000)
     
@@ -160,6 +162,34 @@ if __name__ == "__main__":
     print(params)
     print(error)
 
+    Xv, yv= select_variables(features, 'vy', 'V', relative_wind=False )
+   
+    paramsv, errorv=fit_sigmoid(Xv, yv)
+    print(paramsv)
+    print(errorv)
 
 
 # %%
+from scipy.special import lambertw
+def charnock_function(wind, a, b, g=9.81, k=0.4, zstar=0.0144, zprime=10):
+
+    #wind=u10+v10*1j
+    root=np.sqrt(zprime*g/zstar)
+    x=-wind*k/(2*root)
+
+    return a*root*lambertw(x).real+b
+
+def fit_charnock(X, y):
+    X = np.array(X)
+    y = np.array(y)
+
+    p0 = [1, 0]
+    # Fit the curve
+    popt, pcov = curve_fit(charnock_function, X, y, p0, maxfev=10000)
+    
+    return popt , np.sqrt(np.diag(pcov))  # [L, x0, k, e] # [a, b]
+
+if __name__ == "__main__":
+    #1st-order approximation
+    Xu, yu= select_variables(features, 'vx', 'U', relative_wind=False )
+    Xv, yv= select_variables(features, 'vy', 'V', relative_wind=False )
