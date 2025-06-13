@@ -404,20 +404,11 @@ dt_og=xr.open_datatree(f'{DATA_DIR}/interim/preprocessed_drifter_data.nc')
 bathymetry_file=xr.open_dataset(f'{DATA_DIR}/external/bathymetry.nc')
 bathymetry_eu=xr.open_dataset(f'{DATA_DIR}/external/bathymetry_eu.nc')
 #%%
-palette = ["#101088","#eb9cc0",
-"#ea780a","#1ea6a4",
-"#b3d500",
-"#009e3d",
-"#936a54",
-
-"#f0e442",
-"#e9b856",
-"#8848cd","#9a0809",
-
-
-
-"#d699ff"][::-1]
-plot_trajs_bathymetry_int(dt_og, bathymetry_file, bathymetry_eu, 'trajs_bathymetry-EU', output_path=None, palette=palette, output_format='svg')
+palette = palette = ["#d699ff", "#9a0809", "#8848cd", "#e9b856",
+           "#f0e442", "#936a54", "#009e3d", "#b3d500",
+         '#4b5d9a',  # <-- replaced #1ea6a4 (teal) with a desaturated soft blue-purple
+           "#ea780a", "#eb9cc0", "#101088"]
+plot_trajs_bathymetry_int(dt, bathymetry_file, bathymetry_eu, 'trajs_bathymetry-EU', output_path=None, palette=palette, output_format='svg')
 
 # %%
 plot_trajs_bathymetry_poster(dt_og, bathymetry_file, bathymetry_eu, 'trajs_bathymetry-EU-poster', output_path=None, palette=palette, output_format='svg')
