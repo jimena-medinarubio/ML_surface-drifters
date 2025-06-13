@@ -175,3 +175,5 @@ cython_debug/
 
 #netcdf files
 *.nc
+*.svg
+*.pdf
