@@ -166,7 +166,8 @@ def RF_regression(X, y, block, y_vars_name=None, ntrees=100, plot=False, calcula
 
     return model, stats
 
-
+from sklearn.metrics import confusion_matrix, classification_report, ConfusionMatrixDisplay, accuracy_score
+import math
 def RF_regression_twostep(X, y1, y2, block, y_vars_name=None, ntrees=100, plot=False, calculate_permutation=False, output_path=None, model_name='test'):
 
      # 1ST STEP: CLASSIFICATION  
@@ -183,53 +184,74 @@ def RF_regression_twostep(X, y1, y2, block, y_vars_name=None, ntrees=100, plot=F
 
     stats={'RMSE':[], 'ME':[], 'R2':[]}
 
+    n_folds = block.get_n_splits()
+    n_rows = 2
+    n_cols = math.ceil(n_folds / n_rows)  # Ensures enough columns
+
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 5 * n_rows), sharey=True)
+    axes = axes.flatten()  # flatten to index axes[i] in loop
+
+    all_conf_matrices = []
+
+    # Storage for plotting the colorbar later
+    percent_matrices = []
+
     for i, (train_idx, test_idx) in enumerate(block.split(X, y1)):
         print(f'Outer loop: {i+1}')
-        
-        X_train, X_test= X.iloc[train_idx], X.iloc[test_idx]
+
+        X_train, X_test = X.iloc[train_idx], X.iloc[test_idx]
         y_train, y_test = y1.iloc[train_idx], y1.iloc[test_idx]
-        
+
         X_train.columns = X_train.columns.astype(str)
         model.fit(X_train, y_train)
 
         y_test_pred = model.predict(X_test)
-        test_r2=r2_score(y_test, y_test_pred)
 
+        test_r2 = r2_score(y_test, y_test_pred)
         stats['R2'].append(test_r2)
         stats['RMSE'].append(np.sqrt(mean_squared_error(y_test, y_test_pred)))
         stats['ME'].append(mean_absolute_error(y_test, y_test_pred))
 
-        if plot==True:
-            sns.scatterplot(ax=ax, x=y_test, y=y_test_pred, color=colors[i], label=fr'$f_{i+1}$, $R^2$={np.round(test_r2, 2)} ')
+        # Confusion matrix (raw counts)
+        cm = confusion_matrix(  y_test_pred,  y_test, labels=model.classes_)
+        all_conf_matrices.append(cm)
 
-    rmse=np.round(np.mean(stats["RMSE"]), 2)
-    me=np.round(np.mean(stats["ME"]), 2)
-    r2=[np.round(np.mean(stats["R2"]), 2), np.round(np.std(stats["R2"]), 2)]
-    
-    if plot==True:
-        if 'Zonal Residual' in y_vars_name:
-            l=r'$\tilde{U}_d$'
-            units=fr'[$m \, s^{{-1}}$]'
-        elif 'Meridional Residual' in y_vars_name:
-            l=r'$\tilde{V}_d$'
-            units=fr'[$m \, s^{{-1}}$]'
-        elif 'Zonal velocity' in y_vars_name:
-            l='$U_d$'
-            units=fr'[$m \, s^{{-1}}$]'
-        elif 'Meridional velocity' in y_vars_name:
-            l='$V_d$'
-            units=fr'[$m \, s^{{-1}}$]'
-        else:
-            l='$F$'
-            units=''
-        ax.set_xlabel(rf'Observed {l} {units}', fontsize=14)
-        ax.set_ylabel(rf'Predicted {l} {units}', fontsize=14)
-        ax.legend(loc='lower right', fontsize=12)
-        ax.set_title(rf'ME={me}, RMSE: {rmse}, $R^2$={r2[0]} $\pm$ {r2[1]}', fontsize=14)
-        ax.tick_params(axis='both', labelsize=12)
+        # Convert to percentage of total samples in this fold
+        cm_percent = cm / cm.sum() * 100
+        percent_matrices.append(cm_percent)
 
-        if output_path is not None:
-            plt.savefig(output_path, dpi=300)
+        # Plot heatmap
+        ax = axes[i]
+        sns.heatmap(cm_percent[::-1],  # reverse y-axis
+                    annot=True,
+                    fmt=".1f",
+                    cmap="Blues",
+                    cbar=False,
+                    xticklabels=model.classes_,
+                    yticklabels=model.classes_[::-1],
+                    ax=ax,
+                    vmin=0, vmax=100)
+
+        ax.set_title(f'Fold {i+1}')
+        ax.set_xlabel("Observed binary F")
+        if i == 0:
+            ax.set_ylabel("Predicted binary F")
+
+    # Add a single colorbar
+    # Remove unused subplots (if any)
+    for j in range(i + 1, len(axes)):
+        fig.delaxes(axes[j])
+        
+    fig.subplots_adjust(right=0.88)
+    cbar_ax = fig.add_axes([0.91, 0.15, 0.02, 0.7])
+    sm = plt.cm.ScalarMappable(cmap="Blues", norm=plt.Normalize(vmin=0, vmax=100))
+    sm.set_array([])
+    cbar = fig.colorbar(sm, cax=cbar_ax)
+    cbar.set_label('% data points', fontsize=12)
+
+    plt.tight_layout(rect=[0, 0, 0.9, 1])
+    if output_path is not None:
+        plt.savefig(output_path.rstrip(".svg") + "_all_confmats.svg", dpi=300)
         plt.show()
     
     #FIT MODEL TO ALL DATA
