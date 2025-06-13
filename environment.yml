@@ -6,14 +6,19 @@ dependencies:
   - black
   - flake8
   - isort
-  - scikit-learn
-  - cmocean
-  - cfeature
-  - pickle
   - pip
   - typer
   - loguru
   - tqdm
+#added
+  - scikit-learn
+  - cmocean
+  - cfeature
+  - numpy
+  - xarray 
+  - pandas
+  - matplotlib
+  - pickle
   - pip:
     - python-dotenv
     - -e .
