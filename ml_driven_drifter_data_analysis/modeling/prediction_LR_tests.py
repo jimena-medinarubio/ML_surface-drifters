@@ -53,16 +53,37 @@ def alternative_sigmoid(current, stokes, wind_sigmoid):
 def sigmoid(x, L, x0, k, e):
     return L / (1 + np.exp(-k * (x - x0))) + e
 
+from sklearn.preprocessing import StandardScaler
 # Fit sigmoid to data
-def fit_sigmoid(X, y):
+
+def rescale_sigmoid_params(popt, scaler_X, scaler_y):
+    L_std, x0_std, k_std, e_std = popt
+
+    # Reverse standardization
+    L = L_std * scaler_y.scale_[0]
+    e = e_std * scaler_y.scale_[0] + scaler_y.mean_[0]
+    
+    # x0 and k require a change of variable
+    x0 = x0_std * scaler_X.scale_[0] + scaler_X.mean_[0]
+    k = k_std / scaler_X.scale_[0]
+    
+    return L, x0, k, e
+
+def fit_sigmoid(X, y,):
     X = np.array(X)
     y = np.array(y)
-    # Initial parameter guess: [L, x0, k, e]
-    p0 = [max(y), np.median(X), 1, 0]
+
+    scaler_X = StandardScaler()
+    X_standardized = scaler_X.fit_transform(X.reshape(-1, 1)).ravel()
+    # Standardize y (if needed, for example, if target variable has a different scale)
+    scaler_y = StandardScaler()
+    y_standardized = scaler_y.fit_transform(y.reshape(-1, 1)).ravel()
+    # Initial parameter guess: [L, x0, k]
+    p0 = [max(y), np.median(y), 1, 0]
     # Fit the curve
-    popt, _ = curve_fit(sigmoid, X, y, p0, maxfev=10000)
+    popt, pcov= curve_fit(sigmoid, X_standardized, y_standardized, p0, bounds = ([0, min(X), -np.inf, -np.inf], [np.inf, max(X), np.inf, np.inf]))
     
-    return popt  # [L, x0, k, e]
+    return rescale_sigmoid_params(popt, scaler_X, scaler_y)  # [L, x0, k, e]
 
 def charnock_function(wind, a, b, g=9.81, k=0.4, zstar=0.0144, zprime=10):
 
@@ -83,15 +104,16 @@ def fit_charnock(X, y):
     return popt  # [a, b]
 
 
-def advance_timestep_sigmoid(x, y, U, Ustokes, U10, sigmoid_coeffs, V, Vstokes, V10, sigmoid_coeffs_v, dt=5*60, R=6371000, ):
+def advance_timestep_sigmoid(x, y, U, Ustokes, U10, sigmoid_coeffs, V, Vstokes, V10, sigmoid_coeffs_v, dt=5*60, R=6371000,):
 
     lon_rad = np.deg2rad(x)
     lat_rad = np.deg2rad(y)
 
-    zonal_vel = alternative_sigmoid(U, Ustokes, sigmoid(U10, *sigmoid_coeffs[0:4]))
+    zonal_vel = alternative_sigmoid(U, Ustokes, sigmoid(U10, *sigmoid_coeffs))
    # a=traditional_formula(U, Ustokes, U10, 0.015)
-    meridional_vel = alternative_sigmoid(V, Vstokes, sigmoid(V10, *sigmoid_coeffs_v[0:4]))
-    #meridional_vel = traditional_formula(V, Vstokes, V10, sigmoid_coeffs_v)
+    #
+    meridional_vel = alternative_sigmoid(V, Vstokes, sigmoid(V10, *sigmoid_coeffs_v))
+   # meridional_vel = traditional_formula(V, Vstokes, V10, sigmoid_coeffs_v)
     
     dx=np.multiply(np.array(zonal_vel), dt) #meters
     delta_lon_rad = dx / (R * np.cos(lat_rad))
@@ -136,7 +158,7 @@ def recreate_trajs_LR_tests(ds, delta_t_minutes, trajs_days, coeffs_u, coeffs_v,
             x1, y1 = advance_timestep_sigmoid(
                 lons[i], lats[i], interp['U'], interp['Ustokes'], interp['U10'], coeffs_u,
                 interp['V'], interp['Vstokes'], interp['V10'], coeffs_v,
-                dt=delta_t_minutes*60, )
+                dt=delta_t_minutes*60,)
         elif function=='charnock':
             x1, y1 = advance_timestep_charnock(
                 lons[i], lats[i], interp['U'], interp['Ustokes'], interp['U10'], coeffs_u,
@@ -199,6 +221,7 @@ for i, node in enumerate(datatree.leaves):
     drifter=node.name
     print(f'{i+1}/{len(datatree.leaves)}')
 
+
     drifter_dt= dt_features.copy()
     del drifter_dt[drifter]
     features=create_feature_matrix(drifter_dt, ['U', 'V', 'U10', 'V10', 'Ustokes', 'Vstokes', 'Tp', 'vx', 'vy'], waves=False, fc=False)
@@ -207,16 +230,15 @@ for i, node in enumerate(datatree.leaves):
     Xu, yu= select_variables(features, 'vx', 'U', relative_wind=False )
     Xv, yv= select_variables(features, 'vy', 'V', relative_wind=False )
 
-    popt_u= fit_sigmoid(Xu, yu)
-   # coeff_v, r2v= linear_regression(Xv, yv)
-    popt_v= fit_sigmoid(Xv, yv)
-    #popt_v, r2u= linear_regression(Xv, yv)
-
-    #pred= recreate_trajs_LR(datatree[drifter], dt, days, coeff_u,  coeff_v, False, fieldsets, time_starts)
+    popt_u = np.array(fit_sigmoid(Xu, yu))
+    # coeff_v, r2v= linear_regression(Xv, yv)
+    popt_v = np.array(fit_sigmoid(Xv, yv))
+    # popt_v, r2u= linear_regression(Xv, yv)
 
     pred= recreate_trajs_LR_tests(datatree[drifter], dt, days, popt_u,  popt_v, fieldsets, time_starts, function='sigmoid')
+
     with open(f"{save_dir}/{drifter}/sigmoid.pkl", "wb") as f:
-           pickle.dump(pred, f)
+            pickle.dump(pred, f)
 
         
 
