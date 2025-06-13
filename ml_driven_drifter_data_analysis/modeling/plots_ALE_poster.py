@@ -10,7 +10,7 @@ import xarray as xr
 import tqdm
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.interpolate import interp1
+from scipy.interpolate import interp1d
     #%%
 
 def ale_plots_bootstrap_poster(feature_pairs, ale_resultsu, ale_resultsv, y_name, x_names, output_path=None, labels=None, colors={'u': '#1D4E89', 'v': '#E94F37'}):
