@@ -182,11 +182,11 @@ def plot_pfi_shadow(importances_u, importances_v, stats_u, stats_v, labels, outp
         plt.axvspan(i * 1.5 - bar_width, i * 1.5 + bar_width, color=category_colors[categories[var]], alpha=0.35)
     
     if residual==True:
-        labelu=rf'$\tilde{{U}}_{{d}}$: $R^2={np.mean(stats_u['R2']):.2f}$, RMSE={np.mean(stats_u['RMSE']):.2f}'
-        labelv=rf'$\tilde{{V}}_{{d}}$: $R^2={np.mean(stats_v['R2']):.2f}$, RMSE={np.mean(stats_v['RMSE']):.2f}'
+        labelu=rf'$\tilde{{U}}_{{d}}$: $R^2={np.mean(stats_u['R2']):.2f}$, RMSE={np.mean(stats_u['RMSE']):.2f}, MAE={np.mean(stats_u['ME']):.2f}'
+        labelv=rf'$\tilde{{V}}_{{d}}$: $R^2={np.mean(stats_v['R2']):.2f}$, RMSE={np.mean(stats_v['RMSE']):.2f}, MAE={np.mean(stats_v['ME']):.2f}'
     else:
-        labelu=f'$U_{{d}}$: $R^2={np.mean(stats_u['R2']):.2f}$, RMSE={np.mean(stats_u['RMSE']):.2f}'
-        labelv=rf'$V_{{d}}$: $R^2={np.mean(stats_v['R2']):.2f}$, RMSE={np.mean(stats_v['RMSE']):.2f}'
+        labelu=f'$U_{{d}}$: $R^2={np.mean(stats_u['R2']):.2f}$, RMSE={np.mean(stats_u['RMSE']):.2f}, MAE={np.mean(stats_u['ME']):.2f}'
+        labelv=rf'$V_{{d}}$: $R^2={np.mean(stats_v['R2']):.2f}$, RMSE={np.mean(stats_v['RMSE']):.2f}, MAE={np.mean(stats_v['ME']):.2f}'
     
     # Plot bars
     plt.bar(x_offsets - bar_width / 2, np.abs(data_U), width=bar_width, color='#1D4E89', alpha=1, label=labelu)
@@ -211,10 +211,11 @@ def plot_pfi_shadow(importances_u, importances_v, stats_u, stats_v, labels, outp
     bar_legend = plt.legend(loc='upper right', fontsize=14)
 
     # Add background shading legend outside the plot
-    category_legend = plt.legend(handles=category_patches, 
-                                loc='center left', 
-                                bbox_to_anchor=(1.02, 0.8),
-                                fontsize=13, title_fontsize=14)
+    if model_name=='Random forest model':
+        category_legend = plt.legend(handles=category_patches, 
+                                    loc='center left', 
+                                    bbox_to_anchor=(1.02, 0.8),
+                                    fontsize=13, title_fontsize=14)
 
     # Add both legends
     plt.gca().add_artist(bar_legend)
