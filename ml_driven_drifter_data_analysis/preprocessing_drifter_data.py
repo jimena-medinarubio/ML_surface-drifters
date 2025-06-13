@@ -20,7 +20,7 @@ dt_og = xr.DataTree.from_dict(ds)
 
 # %%
 
-def remove_after_land(dt, velocity_ds, buffer_time=500):
+def remove_after_land(dt, velocity_ds, buffer_time=500, initial_time=True):
     """
     Remove all time coordinates from all datasets after the first land encounter.
     """
@@ -55,7 +55,11 @@ def remove_after_land(dt, velocity_ds, buffer_time=500):
         time_array = time_index[~time_index.isna()].values.astype('datetime64')
         differences = np.abs(time_array - last_index)
         index = np.argmin(differences)
-        dictionary[key.name] = ds.isel(time=slice(60*24//5, index + 1)) #allow initial buffer time of 24h
+
+        if initial_time==True:
+            dictionary[key.name] = ds.isel(time=slice(60*24//5, index + 1)) #allow initial buffer time of 24h
+        else:
+            dictionary[key.name] = ds.isel(time=slice(0, index + 1))
     
     return xr.DataTree.from_dict(dictionary)
 
@@ -116,7 +120,7 @@ def eliminate_signal_errors(dt, threshold=3):
 velocity_land_mask = xr.open_dataset(f'{PROJ_ROOT}/data/external/velocity_land_mask.nc')
 
 #apply funcitons to data
-dt = remove_after_land(dt_og, velocity_land_mask)
+dt = remove_after_land(dt_og, velocity_land_mask, initial_time=False)
 #%%
 dt = filter_time(dt)
 dt = eliminate_signal_errors(dt)
