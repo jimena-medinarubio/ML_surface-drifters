@@ -5,7 +5,6 @@ from scipy.interpolate import RegularGridInterpolator
 import pandas as pd
 from pathlib import Path
 from haversine import haversine, Unit
-from plots import plot_trajs
 #%%
 #specify directories
 PROJ_ROOT = Path(__file__).resolve().parents[2]

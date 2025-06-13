@@ -4,12 +4,11 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from haversine import haversine, Unit
-import matplotlib.pyplot as plt
 from scipy.ndimage import gaussian_filter1d
 #%%
 import sys
 sys.path.append("..")
-from plots import plot_trajs
+from ml_driven_drifter_data_analysis.plots_old import plot_trajs
 PROJ_ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = PROJ_ROOT / "data"
 RAW_DATA_DIR = DATA_DIR / "raw"
