@@ -1,28 +1,28 @@
 #%%
-
 import xarray as xr
 import pandas as pd
 from pathlib import Path
 from parcels import FieldSet, Geographic, GeographicPolar
-import sys
-sys.path.append("..")
 
 #%%
+import sys
+sys.path.append("..")
 PROJ_ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = PROJ_ROOT / "data"
 sys.path.append(str(PROJ_ROOT))  # Add project root to sys.path
 from processing_drifter_data import select_frequency_interval
 
 #%%
-if __name__ == "__main__":
-    datatree=xr.open_datatree(f'{DATA_DIR}/interim/processed_drifter_data.nc')
+#specify the files to be used
+wave_file=f'{DATA_DIR}/external/waves-wind-swell.nc' 
+wind_file=f'{DATA_DIR}/external/wind.nc' 
+curr_file=f'{DATA_DIR}/external/ocean_currents.nc' 
+bathymetry_file=f'{DATA_DIR}/external/bathymetry.nc' 
 
-    wave_file=f'{DATA_DIR}/external/waves-wind-swell.nc' 
-    wind_file=f'{DATA_DIR}/external/wind.nc' 
-    curr_file=f'{DATA_DIR}/external/ocean_currents.nc' 
-    bathymetry_file=f'{DATA_DIR}/external/bathymetry.nc' 
-
-    wave_variables=pd.read_csv(f'{PROJ_ROOT}/references/waves_dataset.csv')
+#drifters data
+datatree_file= f'{DATA_DIR}/interim/processed_drifter_data.nc'
+wave_variables=f'{PROJ_ROOT}/references/waves_dataset.csv'
+saving_file=f'{PROJ_ROOT}/data/interim/interpolated_atm_ocean_datasets_depth.nc'
 
 #%%
 
@@ -88,32 +88,28 @@ def interpolate_datasets( fieldsets, datatree, time_starts, variables):
 
 # Only execute this if running directly (not on import)
 if __name__ == "__main__":
-    PROJ_ROOT = Path(__file__).resolve().parents[2]
-    DATA_DIR = PROJ_ROOT / "data"
+    datatree=xr.open_datatree(datatree_file)
+    wave_variables=pd.read_csv(wave_variables)
 
-    datatree = xr.open_datatree(f'{DATA_DIR}/interim/processed_drifter_data.nc')
-
-    wave_file = f'{DATA_DIR}/external/waves-wind-swell.nc' 
-    wind_file = f'{DATA_DIR}/external/wind.nc' 
-    curr_file = f'{DATA_DIR}/external/ocean_currents.nc' 
-    bathymetry_file=f'{DATA_DIR}/external/bathymetry.nc' 
-
-    wave_variables = pd.read_csv(f'{PROJ_ROOT}/references/waves_dataset.csv')
-
+    #create parcels
     wave_field = create_fieldset(wave_file, 'time', wave_variables.values[0], wave_variables.columns)
     wind_field = create_fieldset(wind_file, 'valid_time', ['u10', 'v10'], ['U10', 'V10'])
     curr_field = create_fieldset(curr_file, 'time', ['uo', 'vo'], ['U', 'V'])
     bathymetry_field = create_static_fieldset(bathymetry_file, ['deptho'], ['z'])
-
     fieldsets = [curr_field, wind_field, wave_field, bathymetry_field]
+
+    #specify starting times
     time_starts = [
         xr.open_dataset(curr_file)['time'][0],
         xr.open_dataset(wind_file)['valid_time'][0],
         xr.open_dataset(wave_file)['time'][0], None
     ]
+    #specify variables to be interpolated
     variables = [['U', 'V'], ['U10', 'V10'], wave_variables.columns, 'z']
 
+    #interpolate data
     dt_interpolated = interpolate_datasets(fieldsets, datatree, time_starts, variables)
 
-    dt_interpolated.to_netcdf(f'{PROJ_ROOT}/data/interim/interpolated_atm_ocean_datasets_depth.nc') 
+    # Save the interpolated dataset
+    dt_interpolated.to_netcdf(saving_file) 
 # %%
