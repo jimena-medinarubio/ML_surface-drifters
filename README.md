@@ -1,11 +1,11 @@
-# ML-driven drifter data analysis
-
-<a target="_blank" href="https://cookiecutter-data-science.drivendata.org/">
+# ML-driven drifter data analysis <a target="_blank" href="https://cookiecutter-data-science.drivendata.org/">
     <img src="https://img.shields.io/badge/CCDS-Project%20template-328F97?logo=cookiecutter" />
 </a>
+
 Data-driven analysis of surface drifters' trajectories to infer the predominant forcing mechanisms that drive their transport & predict their paths.
 
 Related publication: "Using surface drifters to characterise near-surface ocean dynamics in the southern North Sea: a data-driven approach"
+
 Author: Jimena Medina Rubio (PhD Candidate)
 
 ## Project Organization
