@@ -17,9 +17,10 @@ import tqdm
 from modeling.linear_regression import select_variables, linear_regression
 import joblib
 import pickle
+from itertools import chain
 #%%
 PROJ_ROOT = Path(__file__).resolve().parents[2]
-#dt_pred=xr.open_datatree(f'{PROJ_ROOT}/data/interim/predicted_trajectories_rf_lr.nc')
+dt_pred=xr.open_datatree(f'{PROJ_ROOT}/data/interim/predicted_trajectories.nc')
 dt_obs=xr.open_datatree(f'{DATA_DIR}/interim/interpolated_atm_ocean_datasets_depth.nc')
 dir=DATA_DIR/'processed'/'prediction'
 #%%
@@ -76,11 +77,12 @@ def LiuWeisberg_ss(drifter_pred_block, drifter_obs_block, n=1):
     traj_lengths = [haversine((obs[0], obs[1]), (sim[0], sim[1]), unit=Unit.KILOMETERS) for obs, sim in zip(obs_positions[1:], obs_positions[:-1])]
     
     cumulative_length = np.cumsum(traj_lengths)
+    print(cumulative_length[-1])
     
     s = np.sum(distances) / np.sum(cumulative_length)
-    LWS = 1 - s if s <= n else 0
+    LWS = 1 - s/n if s <= n else 0
 
-    return LWS
+    return LWS, cumulative_length[-1]
 
 def compute_LWS_timeseries(drifter_pred, drifter_obs,  n=1):
     # Ensure both DataFrames align
@@ -98,7 +100,7 @@ def compute_LWS_timeseries(drifter_pred, drifter_obs,  n=1):
         pred_block = drifter_pred.sel(time=slice(start_time, time))
         
         if obs_block['time'].size > 1:
-            lws = LiuWeisberg_ss(pred_block, obs_block, n=n)
+            lws, trajs = LiuWeisberg_ss(pred_block, obs_block, n=n)
             lws_series.append((time, lws))
         pass
 
@@ -171,10 +173,12 @@ def plot_points_and_avg(trajectories, colors, property='MCSD', ylabel='Mean Cumu
     plt.scatter([], [], color='white', marker='o', s=150, edgecolor='black', zorder=5, label='Median')  # Marker for average
   #  plt.scatter([], [], color='black', marker='o', s=100, edgecolor='black', zorder=5, label='Single drifter data')  # Marker for average
 
+
+    if property=='MCSD':
+        plt.xlim(0, np.max([np.max(values[i]) for i in range(len(data))]) + 5)
+    
     plt.xlabel(ylabel, fontsize=14)
     plt.xticks(fontsize=14)
-    if property=='MCSD':
-        plt.xlim(0, np.max([np.max(values[i]) for i in range(len(data))]) + 10)
     plt.legend( fontsize=14, loc='best')
 
     plt.savefig(f'{PROJ_ROOT}/reports/figures/prediction/{property}_{name}.svg', dpi=300, bbox_inches='tight')
@@ -300,7 +304,7 @@ def willmott_skill_score(lons, lats, lons2_resampled, lats2_resampled):
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes, mark_inset
 import matplotlib.patches as patches
 
-def D_timeseries(labels, dt_pred, dt_obs, name=None, xlim=None):
+def D_timeseries(labels, dt_pred, dt_obs, name=None, xlim=None, ylim=30, ylim_big=150):
     
     # Define common time base (in days since release)
     common_days = np.linspace(0, 66,len(dt_obs['6480']['time']))  # or adjust depending on your simulation length and resolution
@@ -349,12 +353,13 @@ def D_timeseries(labels, dt_pred, dt_obs, name=None, xlim=None):
 
     plt.xlabel('Time since release [days]', fontsize=14)
     plt.ylabel('Cumulative Separation Distance [km]', fontsize=14)
-    plt.ylim(0, 150)
+    plt.ylim(0, ylim_big)
     plt.xlim(0, xlim)
+    plt.tick_params(axis='both', labelsize=14) 
 
     zoom_xlim = [0, 7]  # Define the x-limits for the zoom window (adjust these values based on your data)
 
-    zoom_ylim = [0, 30]  # Define the y-limits for the zoom window (adjust these values based on your data)
+    zoom_ylim = [0, ylim]  # Define the y-limits for the zoom window (adjust these values based on your data)
 
     rect = patches.Rectangle((zoom_xlim[0], zoom_ylim[0]), zoom_xlim[1] - zoom_xlim[0], zoom_ylim[1] - zoom_ylim[0],
                             linewidth=1, edgecolor='red', facecolor='none', linestyle='--', label='Zoom-in Area')
@@ -399,10 +404,16 @@ for drifter in dt_pred:
     
        
         cumd, d=MCSD(predictions, dt_obs[drifter], residual=res)
-        ss=LiuWeisberg_ss(predictions, dt_obs[drifter],)
+        ss, trajs =LiuWeisberg_ss(predictions, dt_obs[drifter], n=0.05)
         dt_pred[drifter][model]['MCSD']=xr.DataArray(cumd, dims=[])
         dt_pred[drifter][model]['ss']=xr.DataArray(ss, dims=[])
+        dt_pred[drifter][model]['traj_length']=xr.DataArray(trajs, dims=[])
         dt_pred[drifter][model]['D']=xr.DataArray(d, dims=['t'])
+
+        since_release= (valid_obs_times - valid_obs_times[0]) / np.timedelta64(1, 'D')
+        
+        dt_pred[drifter][model]['t']=xr.DataArray(since_release.values)
+
 
 # %%
 labels=[ 'Support vector regression','Random forest', 'Linear regression',]
@@ -412,8 +423,8 @@ plot_points_and_avg(dt_pred, [ '#9ab9f9','#009988',  '#DDAA33', ], 'MCSD', order
 labels=['Original', '+Flipping Index',  '+Lat & Lon', '+Bathymetry'][::-1]
 plot_points_and_avg(dt_pred, [ '#009988', 'grey',  '#AA4499', '#332288',  ][::-1], 'MCSD', order=[ 'RF', 'RF_FI_twostep', 'RF_coords', 'RF_depth', ][::-1], labels=labels, name='RF_tests')
 # %%
-labels=['Charnock parametrisation', 'Sigmoid function: wind', 'Linear function: relative wind', 'Linear function: wind' ]
-plot_points_and_avg(dt_pred, ['#6A041D', '#4BC6B9', '#EE3377', '#DDAA33', ], 'MCSD', order=['charnock', 'sigmoid', 'LR_rw', 'LR',], labels=labels, name='LR_tests_charnock')
+labels=[ 'Sigmoid function: wind', 'Linear function: relative wind', 'Linear function: wind' ]
+plot_points_and_avg(dt_pred, ['#4BC6B9', '#EE3377', '#DDAA33', ], 'MCSD', order=[ 'sigmoid', 'LR_rw', 'LR',], labels=labels, name='LR_tests_sigmoid')
 #%%
 import cartopy.feature as cfeature
 import cartopy.crs as ccrs
@@ -501,12 +512,12 @@ labels={'LR': ['Linear regression','#DDAA33'],
         'RF': ['Random forest','#009988'] , 
          'SVR': ['Support vector regression', '#9ab9f9']}
 
-mod=D_timeseries(labels, dt_pred, dt_obs, name='models')
+mod=D_timeseries(labels, dt_pred, dt_obs, name='models', xlim=60)
 #%%
 labels={'LR': ['Linear function: wind','#DDAA33'],
         'LR_rw': ['Linear function: relative wind','#C44775'] , 
           'sigmoid': ['Sigmoid function: wind','#4BC6B9'] }
-lrmodels=D_timeseries(labels, dt_pred, dt_obs, name='lr_tests', xlim=50)
+lrmodels=D_timeseries(labels, dt_pred, dt_obs, name='lr_tests', xlim=60, ylim=15)
 
 # %%
 labels=[ 'Support vector regression','Random forest', 'Linear regression',]
@@ -520,7 +531,7 @@ plot_points_and_avg(dt_pred, [ '#0077BB','#009988',  '#DDAA33', ], 'wss_lat', yl
 labels={'LR': ['Linear regression','#DDAA33'],
         'RF': ['Random forest','#009988'] , 
          'SVR': ['Support vector regression', '#0077BB']}
-plot_points_and_avg(dt_pred, [ '#0077BB','#009988',  '#DDAA33', ], 'ss', order=['SVR', 'RF',  'LR',], labels=labels, ylabel='Liu-Weisberg skill score',name='modelss')
+plot_points_and_avg(dt_pred, [ '#0077BB','#009988',  '#DDAA33', ], 'ss', order=['SVR', 'RF',  'LR',], labels=labels, ylabel='Liu-Weisberg skill score',name='models_0.05n')
 
 
 # %%
@@ -531,7 +542,7 @@ labels={'RF': ['Original','#009988'] ,
         'RF_depth': ['+Bathymetry','#332288'] ,}
        #  'RF_residual': [ 'Residual velocity','#AA4499'] ,  }
 
-mod=D_timeseries(labels, dt_pred, dt_obs, name='test_RF')
+mod=D_timeseries(labels, dt_pred, dt_obs, name='test_RF', xlim=60, ylim=20, ylim_big=100)
 
 # %%
 
