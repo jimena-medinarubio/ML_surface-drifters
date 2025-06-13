@@ -16,7 +16,7 @@ PROCESSED_DATA_DIR = f'{PROJ_ROOT}/data/processed'
 EXTERNAL_DATA_DIR = f'{PROJ_ROOT}/data/external'
 
 MODELS_DIR = f'{PROJ_ROOT}/models'
-REFERENCES_DIR = f'{PROJ_ROOT}/references'
+REFS_DIR = f'{PROJ_ROOT}/references'
 REPORTS_DIR =f'{PROJ_ROOT}/reports'
 FIGURES_DIR = f'{PROJ_ROOT}/reports/figures'
 
