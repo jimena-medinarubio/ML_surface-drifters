@@ -4,33 +4,44 @@ from tqdm import tqdm
 import xarray as xr
 import numpy as np
 import pandas as pd
+from scipy.special import erfc
+from scipy.stats import spearmanr
 import matplotlib.pyplot as plt
+import cmocean
+#%%
 import sys
 sys.path.append("..")
-from scipy.stats import spearmanr
 from config import DATA_DIR, PROJ_ROOT
-from scipy.special import erfc
 
 #%%
-if __name__ == "__main__":
-    dt_features=xr.open_datatree(f'{DATA_DIR}/interim/interpolated_atm_ocean_datasets.nc')
-    labels=pd.read_csv(f'{PROJ_ROOT}/references/variables_labels_residual.csv', delimiter=';', index_col=0)
+interpolated_data_file=f'{DATA_DIR}/interim/interpolated_atm_ocean_datasets.nc'
+labels_file=f'{PROJ_ROOT}/references/variables_labels_residual.csv'
+
 # %%
-
 def calculate_stokes_drift_depth(u, Tp, z, beta=1, gamma=5.97):
-        def calculate_k(u, tp, beta):
-            return abs(u)/(2*abs(tp))*(1-2*beta/3)
-        k=calculate_k(u, Tp, gamma)
-        expo=np.exp(2*k*z)
-        a= beta*np.sqrt(-2*k*np.pi*z )*erfc( np.sqrt(-2*k*z) )
-        return u*(expo-a)
 
-def transformations(df, filter_currents=True, waves=True):
+    """
+    calculate stokes drift at depth z using deep water wave theory
+    """
+
+    def calculate_k(u, tp, beta):
+        return abs(u)/(2*abs(tp))*(1-2*beta/3)
+    k=calculate_k(u, Tp, gamma)
+    expo=np.exp(2*k*z)
+    a= beta*np.sqrt(-2*k*np.pi*z )*erfc( np.sqrt(-2*k*z) )
+    return u*(expo-a)
+
+def transformations(df, filter_currents=True, waves=True, period='24.83h'):
+    """
+    transformations to be applied to the DataFrame:
+    - calculate Stokes drift at depth z=0.5m for zonal and meridional components
+    - calculate wave components in x and y directions
+    - filter currents using a low-pass filter with a window of 24.83 hours
+    """
 
     for var in ['Ustokes', 'Vstokes']:
-        if var in df.columns:  # Check if the variable exists
+        if var in df.columns:  # check if the variable exists
             df[var] = calculate_stokes_drift_depth(df[var], df['Tp'], 0.5)
-
 
     wave_directions=['Wave_dir_wind', 'Wave_dir_swell', 'Wave_dir_swell_secondary', 'Wave_dir']
     if waves==True:
@@ -44,7 +55,7 @@ def transformations(df, filter_currents=True, waves=True):
     if filter_currents:
         for var in ['U', 'V']:
             df = df.set_index('time')
-            df[f'{var}_lp'] = df[var].rolling(window='24.83h', min_periods=1, center=True).mean()
+            df[f'{var}_lp'] = df[var].rolling(window=period, min_periods=1, center=True).mean()
             df[f'{var}_hp'] = df[var]-df[f'{var}_lp']
             df=df.drop(columns=[var])
             df = df.reset_index(drop=False)
@@ -52,6 +63,10 @@ def transformations(df, filter_currents=True, waves=True):
     return df
 
 def create_feature_matrix(dt_features, selected_vars, waves=True, fc=True):
+    """
+    create feature matrix of interpolated datasets at drifter location
+    """
+
     dfs = []
     for drifter_id, node in dt_features.children.items():
         ds_subset = node.ds[selected_vars]  # Select only chosen variables
@@ -68,9 +83,10 @@ def create_feature_matrix(dt_features, selected_vars, waves=True, fc=True):
 
         dfs.append(df)
 
-    # Combine all drifters into one DataFrame
+    # combine all drifters into one DataFrame
     feature_matrix = pd.concat(dfs, ignore_index=False)
 
+    #remove obs & trajectory vars from matrix
     if 'obs' in feature_matrix.columns:
         feature_matrix = feature_matrix.drop(columns=['obs'])
     if 'trajectory' in feature_matrix.columns:
@@ -81,11 +97,10 @@ def create_feature_matrix(dt_features, selected_vars, waves=True, fc=True):
     return feature_matrix
 
 def plot_matrix(X_drifter, labels):
-    import matplotlib.pyplot as plt
-    from scipy.stats import spearmanr
-    import numpy as np
-    import cmocean
-
+    
+    """
+    Plot a matrix with correlation plots for each pair of features in the DataFrame X_drifter.
+    """
     n_features = X_drifter.shape[1]
     feature_names = X_drifter.columns[::-1]
 
@@ -106,6 +121,7 @@ def plot_matrix(X_drifter, labels):
             elif i < j:
                 spearman_corr, p_value = spearmanr(X_drifter[nj], X_drifter[ni])
 
+                # if high correlation, use thermal colormap, else use dense colormap
                 if spearman_corr > 0.8:
                     hist = ax.hist2d(
                         X_drifter[ni], X_drifter[nj],
@@ -139,7 +155,7 @@ def plot_matrix(X_drifter, labels):
             if j > 0:
                 ax.set_yticks([])
 
-    # Add feature labels
+    # add feature labels
     for i, name in enumerate(feature_names):
         label = labels[name]['label']
         axes[-1, i].set_xlabel(label, fontsize=16, rotation=45, ha='center')
@@ -147,7 +163,7 @@ def plot_matrix(X_drifter, labels):
 
     fig.tight_layout()
 
-    # Add colorbars for both colormaps
+    # add colorbars for both colormaps (high & low correlation)
     if hist_thermal:
         cbar_ax = fig.add_axes([0.91, 0.55, 0.015, 0.3])  # [left, bottom, width, height]
         cbar=fig.colorbar(hist_thermal[3], cax=cbar_ax, )
@@ -163,15 +179,18 @@ def plot_matrix(X_drifter, labels):
     plt.savefig(f'{PROJ_ROOT}/reports/figures/feature_matrix.svg', dpi=300, bbox_inches='tight')
     plt.show()
 
-# %%
-#example
+#%%
 if __name__ == "__main__":
+    dt_features=xr.open_datatree(interpolated_data_file)
+    labels=pd.read_csv(labels_file, delimiter=';', index_col=0)
+
+    #specify variables to include in the feature matrix
     variables=['U', 'V', 'U10', 'V10', 'Ustokes', 'Vstokes', 'Hs_wind', 'Hs_swell', 'Hs_swell_secondary', 'Wave_dir',
            'Wave_dir_wind', 'Wave_dir_swell', 'Wave_dir_swell_secondary', 'Tp', ]
-#
+    
+    #create feature matrix
     feature_matrix_total=create_feature_matrix(dt_features, variables, fc=True)
-   # print(feature_matrix_total.shape)
-   # plot_matrix(feature_matrix_total.drop(columns='drifter_id'), labels)
-
-
-# %%
+#%%
+if __name__ == "__main__":
+    #plot correlation matrix of all combination of features
+   plot_matrix(feature_matrix_total.drop(columns='drifter_id'), labels)
