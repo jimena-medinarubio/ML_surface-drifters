@@ -1,5 +1,4 @@
 #%%
-from pathlib import Path
 
 from dotenv import load_dotenv
 from loguru import logger
@@ -8,20 +7,17 @@ from loguru import logger
 load_dotenv()
 
 # Paths
-PROJ_ROOT = Path(__file__).resolve().parents[1]
-#logger.info(f"PROJ_ROOT path is: {PROJ_ROOT}")
+PROJ_ROOT ="/Users/1614576/Desktop/ML-driven drifter data analysis"
 
-DATA_DIR = PROJ_ROOT / "data"
-RAW_DATA_DIR = DATA_DIR / "raw"
-INTERIM_DATA_DIR = DATA_DIR / "interim"
-PROCESSED_DATA_DIR = DATA_DIR / "processed"
-EXTERNAL_DATA_DIR = DATA_DIR / "external"
+DATA_DIR = f'{PROJ_ROOT}/data'
+RAW_DATA_DIR = f'{PROJ_ROOT}/data/raw'
+INTERIM_DATA_DIR = f'{PROJ_ROOT}/data/interim'
+PROCESSED_DATA_DIR = f'{PROJ_ROOT}/data/processed'
+EXTERNAL_DATA_DIR = f'{PROJ_ROOT}/data/external'
 
-MODELS_DIR = PROJ_ROOT / "models"
+MODELS_DIR = f'{PROJ_ROOT}/models'
+REFERENCES_DIR = f'{PROJ_ROOT}/references'
+REPORTS_DIR =f'{PROJ_ROOT}/reports'
+FIGURES_DIR = f'{PROJ_ROOT}/reports/figures'
 
-REPORTS_DIR = PROJ_ROOT / "reports"
-FIGURES_DIR = REPORTS_DIR / "figures"
-
-# If tqdm is installed, configure loguru with tqdm.write
-# https://github.com/Delgan/loguru/issues/135
 # %%
