@@ -178,3 +178,4 @@ cython_debug/
 *.svg
 *.pdf
 data/external/**
+models
