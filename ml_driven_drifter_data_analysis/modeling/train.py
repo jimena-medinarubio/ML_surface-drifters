@@ -1,10 +1,7 @@
 #%%
-from pathlib import Path
-from tqdm import tqdm
 import numpy as np
 import pandas as pd
 import pickle
-from config import MODELS_DIR, PROCESSED_DATA_DIR, DATA_DIR,  PROJ_ROOT
 from sklearn.preprocessing import StandardScaler
 import seaborn as sns
 from sklearn.inspection import permutation_importance
@@ -14,8 +11,14 @@ from sklearn.metrics import mean_squared_error, make_scorer, r2_score, mean_abso
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.svm import SVR
 from sklearn.model_selection import BaseCrossValidator
-from sklearn.base import clone
 import joblib
+from sklearn.metrics import confusion_matrix
+import math
+#%%
+
+import sys
+sys.path.append('..')
+from config import MODELS_DIR, PROCESSED_DATA_DIR
 #%%
 
 class TimeBlockSplit(BaseCrossValidator):
@@ -76,6 +79,30 @@ class TimeBlockSplit(BaseCrossValidator):
     def get_n_splits(self, X=None, y=None, groups=None):
         """Return the number of splits."""
         return self.n_splits
+    
+#save functions
+def save_stats(stats_array, names, output_dir):
+    for i, elem in enumerate(stats_array):
+        filtered_elem = {k: v for k, v in elem.items() if k != 'permutation_importance' and k!='oob_score'}
+        df = pd.DataFrame(filtered_elem)
+        # Save as CSV
+        df.to_csv(f"{output_dir}/{names[i]}_stats.csv", index=False)
+
+def save_permutation(stats_array, names, output_dir):
+    for i, elem in enumerate(stats_array):
+        df = pd.DataFrame(elem['permutation_importance'])
+        # Save as CSV
+        df.to_csv(f"{output_dir}/{names[i]}_pfi.csv", index=False)
+
+def save_models(stats_array, names, output_dir):
+    for i, elem in enumerate(stats_array):
+        joblib.dump(elem, f"{output_dir}/{names[i]}_models.pkl")
+
+def save_scalers(scalers, names, output_dir):
+    for i, elem in enumerate(scalers):
+        with open(f'{output_dir}/{names[i]}_scaler.pkl', 'wb') as file:
+            pickle.dump(elem, file)
+
 #%%
 
 def RF_regression(X, y, block, y_vars_name=None, ntrees=100, plot=False, calculate_permutation=False, output_path=None, model_name='test'):
@@ -93,6 +120,7 @@ def RF_regression(X, y, block, y_vars_name=None, ntrees=100, plot=False, calcula
 
     stats={'RMSE':[], 'ME':[], 'R2':[]}
 
+    #CROSS VALIDATION
     for i, (train_idx, test_idx) in enumerate(block.split(X, y)):
         print(f'Outer loop: {i+1}')
         
@@ -159,19 +187,16 @@ def RF_regression(X, y, block, y_vars_name=None, ntrees=100, plot=False, calcula
     oob_score = model.oob_score_
     stats['oob_score']=oob_score
 
-    save_stats([stats], [f'RF_{model_name}'], PROJ_ROOT/ 'data'/ 'processed'/ 'Statistics models'/'RandomForest' )
-    save_models([model], [f'RF_{model_name}'], PROJ_ROOT/ 'models'/ 'RandomForest' )
-    save_permutation([stats], [f'RF_{model_name}'], PROJ_ROOT/ 'data'/ 'processed'/ 'PFI'/'RandomForest' )
+    save_stats([stats], [f'RF_{model_name}'], PROCESSED_DATA_DIR/ 'Statistics models'/'RandomForest' )
+    save_models([model], [f'RF_{model_name}'], MODELS_DIR/ 'RandomForest' )
+    save_permutation([stats], [f'RF_{model_name}'],PROCESSED_DATA_DIR / 'PFI'/'RandomForest' )
     
-
     return model, stats
 
-from sklearn.metrics import confusion_matrix, classification_report, ConfusionMatrixDisplay, accuracy_score
-import math
+
 def RF_regression_twostep(X, y1, y2, block, y_vars_name=None, ntrees=100, plot=False, calculate_permutation=False, output_path=None, model_name='test'):
 
      # 1ST STEP: CLASSIFICATION  
-
     model=RandomForestClassifier(random_state=42, n_estimators=ntrees, oob_score=True, 
                                 bootstrap=True)
     if plot==True:
@@ -271,11 +296,11 @@ def RF_regression_twostep(X, y1, y2, block, y_vars_name=None, ntrees=100, plot=F
     oob_score = model.oob_score_
     stats['oob_score']=oob_score
 
-    save_stats([stats], [f'RF_{model_name}_class'], PROJ_ROOT/ 'data'/ 'processed'/ 'Statistics models'/'RandomForest' )
-    save_models([model], [f'RF_{model_name}_class'], PROJ_ROOT/ 'models'/ 'RandomForest' )
-    save_permutation([stats], [f'RF_{model_name}_class'], PROJ_ROOT/ 'data'/ 'processed'/ 'PFI'/'RandomForest' )
+    save_stats([stats], [f'RF_{model_name}'], PROCESSED_DATA_DIR/ 'Statistics models'/'RandomForest' )
+    save_models([model], [f'RF_{model_name}'], MODELS_DIR/ 'RandomForest' )
+    save_permutation([stats], [f'RF_{model_name}'],PROCESSED_DATA_DIR / 'PFI'/'RandomForest' )
     
-    # 2ND STEP: REGRESSION
+    # 2ND STEP: REGRESSION with non-zero values of y2
 
     #reconstruct values
     y1_pred=model.predict(X)
@@ -286,7 +311,6 @@ def RF_regression_twostep(X, y1, y2, block, y_vars_name=None, ntrees=100, plot=F
     y2_filtered = y2[mask]
 
     RF_regression(X_filtered, y2_filtered, block, y_vars_name, ntrees, plot, calculate_permutation, output_path, model_name=f'{model_name}_regression')
-
 
     
 #%%
@@ -393,34 +417,11 @@ def SVR_regression(X, y, block, y_vars_name, kernel='rbf', plot=False, calculate
     else:
         stats['permutation_importance']=[]
 
-    save_stats([stats], [f'SVR_{model_name}'], PROJ_ROOT/ 'data'/ 'processed'/ 'Statistics models'/'SVR' )
-    save_models([best_model], [f'SVR_{model_name}'], PROJ_ROOT/ 'models'/ 'SVR' )
-    save_permutation([stats], [f'SVR_{model_name}'], PROJ_ROOT/ 'data'/ 'processed'/ 'PFI'/'SVR' )
-    save_scalers( [y_scaler, X_scaler], [f'y_{model_name}', f'X_{model_name}'], PROJ_ROOT/ 'data'/ 'processed'/ 'Statistics models'/'SVR')
+    save_stats([stats], [f'RF_{model_name}'], PROCESSED_DATA_DIR/ 'Statistics models'/'SVR' )
+    save_models([best_model], [f'RF_{model_name}'], MODELS_DIR/ 'SVR' )
+    save_permutation([stats], [f'RF_{model_name}'],PROCESSED_DATA_DIR / 'PFI'/'SVR' )
+    save_scalers( [y_scaler, X_scaler], [f'y_{model_name}', f'X_{model_name}'], PROCESSED_DATA_DIR/ 'Statistics models'/'SVR')
     
     return best_model, stats
-
-#%%
-def save_stats(stats_array, names, output_dir):
-    for i, elem in enumerate(stats_array):
-        filtered_elem = {k: v for k, v in elem.items() if k != 'permutation_importance' and k!='oob_score'}
-        df = pd.DataFrame(filtered_elem)
-        # Save as CSV
-        df.to_csv(f"{output_dir}/{names[i]}_stats.csv", index=False)
-
-def save_permutation(stats_array, names, output_dir):
-    for i, elem in enumerate(stats_array):
-        df = pd.DataFrame(elem['permutation_importance'])
-        # Save as CSV
-        df.to_csv(f"{output_dir}/{names[i]}_pfi.csv", index=False)
-
-def save_models(stats_array, names, output_dir):
-    for i, elem in enumerate(stats_array):
-        joblib.dump(elem, f"{output_dir}/{names[i]}_models.pkl")
-
-def save_scalers(scalers, names, output_dir):
-    for i, elem in enumerate(scalers):
-        with open(f'{output_dir}/{names[i]}_scaler.pkl', 'wb') as file:
-            pickle.dump(elem, file)
 
 # %%
