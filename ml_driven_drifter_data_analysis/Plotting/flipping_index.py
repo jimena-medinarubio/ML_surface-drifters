@@ -1,3 +1,4 @@
+
 #%%
 import numpy as np
 import matplotlib.pyplot as plt
@@ -6,21 +7,17 @@ import pandas as pd
 import xarray as xr
 from haversine import haversine, Unit
 import sys
-
 import seaborn as sns
-sys.path.append("..")
-from config import MODELS_DIR, DATA_DIR
-from features import transformations, create_feature_matrix
-from dataset import create_fieldset
-import tqdm
-from modeling.linear_regression import select_variables, linear_regression
-import joblib
-import pickle
 # %%
-PROJ_ROOT = Path(__file__).resolve().parents[2]
-dt_obs=xr.open_datatree(f'{DATA_DIR}/interim/interpolated_atm_ocean_datasets_depth.nc')
-# %%
+PROJ_ROOT = DATA_DIR = '/Users/1614576/Desktop/ML-driven drifter data analysis/' 
 
+interpolated_data_file= f'{PROJ_ROOT}/data/interim/interpolated_atm_ocean_datasets_depth.nc'
+save_file=f'{PROJ_ROOT}/reports/figures/FigE2.svg'
+# %%
+# Load the interpolated data
+dt_obs=xr.open_datatree(interpolated_data_file)
+
+#create figure to plot mean flipping index over all drifters as a function of time
 plt.figure(figsize=(12, 6))
 flipping_list = []
 for drifter in dt_obs.children:
@@ -61,6 +58,6 @@ plt.xlabel('Time since release [days]', fontsize=14)
 plt.ylabel('Flipping Index', fontsize=14)
 plt.legend( fontsize=14)
 plt.tight_layout()
-plt.savefig(f'{PROJ_ROOT}/reports/figures/flipping_index.svg', dpi=300)
+plt.savefig(save_file, dpi=300)
 plt.show()
 # %%
