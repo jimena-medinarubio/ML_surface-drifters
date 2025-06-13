@@ -1,0 +1,58 @@
+#%%
+import numpy as np
+import xarray as xr
+import joblib
+import pandas as pd
+from pathlib import Path
+import sys
+sys.path.append("..")
+from config import DATA_DIR,  INTERIM_DATA_DIR ,MODELS_DIR, FIGURES_DIR, PROCESSED_DATA_DIR, REFS_DIR
+from features import create_feature_matrix
+from ml_driven_drifter_data_analysis.modeling.model_agnostics.model_agnostics_plots import bootstrap_ale
+
+#%%
+
+wave_variables_file= 'waves_dataset.csv'
+interpolated_atm_ocean_file= 'interpolated_atm_ocean_datasets_depth.nc'
+
+ML_model_settings={'RF_total': {'files':[f'{MODELS_DIR}/RandomForest/RF_Ud_models.pkl', f'{MODELS_DIR}/RandomForest/RF_Vd_models.pkl'], 
+                                'u_variables': ['U10', 'U_hp'], 'v_variables': ['V10', 'V_hp'], 'path':['Total'],
+                                'stats':[PROCESSED_DATA_DIR/ 'Statistics models'/'RandomForest'/'RF_Ud_stats', PROCESSED_DATA_DIR/ 'Statistics models'/'RandomForest'/'RF_Vd_stats'], 
+                                'labels': pd.read_csv(f'{REFS_DIR}/variables_labels.csv', delimiter=';', index_col=0),
+                                },
+                      
+                'RF_residual': {'files':[f"{MODELS_DIR}/RandomForest/RF_rUd_models.pkl", f"{MODELS_DIR}/RandomForest/RF_rVd_models.pkl"], 
+                                'u_variables': ['U10', 'U_lp', 'Ustokes'], 'v_variables': ['V10', 'V_lp', 'Vstokes'], 'path':['residual'],
+                                'stats':[PROCESSED_DATA_DIR/ 'Statistics models'/'RandomForest'/'RF_rUd_FI_stats', PROCESSED_DATA_DIR/ 'Statistics models'/'RandomForest'/'RF_rVd_FI_stats'], 
+                                'labels': pd.read_csv(f'{REFS_DIR}/variables_labels_residual.csv', delimiter=';', index_col=0), 'title': 'Random forest model'}}
+             
+#%%
+wave_variables=pd.read_csv(f'{REFS_DIR}/{wave_variables_file}')
+variables=['U', 'V', 'U10', 'V10', 'Ustokes', 'Vstokes', 'Hs_wind', 'Hs_swell', 'Hs_swell_secondary', 'Wave_dir',
+           'Wave_dir_wind', 'Wave_dir_swell', 'Wave_dir_swell_secondary', 'Tp', ]
+y_variables=['vx', 'vy', 'vx_residual', 'vy_residual']
+variables_analysis=['U_hp', 'U_lp', 'V_hp', 'V_lp','U10', 'V10', 'Ustokes', 'Vstokes', 'Hs_wind_x', 'Hs_wind_y', 
+                    'Hs_swell_x', 'Hs_swell_y', 'Hs_swell_secondary_x', 'Hs_swell_secondary_y', 'Tp_x', 'Tp_y']
+dt_features=xr.open_datatree(f'{INTERIM_DATA_DIR}/{interpolated_atm_ocean_file}')
+
+X=create_feature_matrix(dt_features, np.concatenate([variables, y_variables]) , waves=True, fc=True)
+path=FIGURES_DIR/ 'ALE'
+
+ale_u, ale_v=bootstrap_ale(X[variables_analysis], X['vx'], X['vy'],  ['U_hp', 'U10'], ['V_hp', 'V10'], n_bootstraps=100)
+ale_ru, ale_rv=bootstrap_ale(X[variables_analysis], X['vx_residual'], X['vy_residual'],  ['U_lp', 'U10', 'Ustokes'], ['V_lp', 'V10', 'Vstokes'])
+
+#%%
+#%%
+import pickle
+with open(f'{DATA_DIR}/processed/ALE/RF_Ud_ALE', "rb") as f:
+    ale_u=pickle.dump( f)
+
+with open(f'{DATA_DIR}/processed/ALE/RF_Vd_ALE', "rb") as f:
+    ale_v=pickle.dump( f)
+
+with open(f'{DATA_DIR}/processed/ALE/RF_rUd_ALE', "wb") as f:
+    pickle.dump(ale_ru, f)
+
+with open(f'{DATA_DIR}/processed/ALE/RF_rVd_ALE', "wb") as f:
+    pickle.dump(ale_rv, f)
+# %%
