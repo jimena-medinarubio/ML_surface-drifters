@@ -10,8 +10,7 @@ from scipy.interpolate import interp1d
 import pandas as pd
 
 #%%
-PROJ_ROOT = Path(__file__).resolve().parents[2]
-DATA_DIR = PROJ_ROOT / "data"
+DATA_DIR = '/Users/1614576/Desktop/ML-driven drifter data analysis/data' 
 
 #drifter data file
 drifter_data_file = 'interim/processed_drifter_data.nc'
@@ -210,15 +209,16 @@ def plot_Fourier_Wavelet(pw, dt, name_fig='Wavelet_Fourier', output_path=None):
 
     if output_path is None:
         PROJ_ROOT = Path(__file__).resolve().parents[2]
-        FIGURES_DIR = PROJ_ROOT / "reports" / "figures"
-        output_path = FIGURES_DIR / f'{name_fig}.svg'
-    plt.savefig(output_path, dpi=300)
+        output_path = PROJ_ROOT / "reports" / "figures"
+        
+    plt.savefig(f'{output_path}/{name_fig}.svg', dpi=300)
 
     plt.show()
 
 # %%
 dt_lowres=lower_temporal_resolution(datatree)
 
+#%%
 #zonal
 pw_x=power_spectrum(dt_lowres, 'vx')
 plot_single_Wavelet_period(pw_x, 3*3600, drifter_id=5)
@@ -231,7 +231,7 @@ plot_single_Wavelet_period(pw_y, 3*3600, drifter_id=5)
 #%%
 #total
 pw_total=power_spectrum(dt_lowres, 'v')
-plot_single_Wavelet_period(pw_total, 3*3600, drifter_id=5)
-plot_Fourier_Wavelet(pw_total, 3*3600 )
+#plot_single_Wavelet_period(pw_total, 3*3600, drifter_id=5)
+plot_Fourier_Wavelet(pw_total, 3*3600, name_fig='FigB1', output_path='/Users/1614576/Desktop/ML-driven drifter data analysis/reports/figures/' )
 
 # %%
