@@ -81,69 +81,85 @@ def create_feature_matrix(dt_features, selected_vars, waves=True, fc=True):
     return feature_matrix
 
 def plot_matrix(X_drifter, labels):
-    n_features = X_drifter.shape[1]  # Number of features
-    feature_names = X_drifter.columns[::-1]  # Example feature names
+    import matplotlib.pyplot as plt
     from scipy.stats import spearmanr
+    import numpy as np
     import cmocean
-    # Set up the figure size based on the number of features
+
+    n_features = X_drifter.shape[1]
+    feature_names = X_drifter.columns[::-1]
+
     fig, axes = plt.subplots(n_features, n_features, figsize=(20, 20))
 
-    # Loop over rows and columns to create scatter plots
+    hist_thermal = None
+    hist_dense = None
+
     for i in range(n_features):
-        ni=feature_names[i]
+        ni = feature_names[i]
         for j in range(n_features):
-            nj=feature_names[j]
+            nj = feature_names[j]
             ax = axes[j, i]
-        
+
             if i == j:
-                # Eliminate the diagonal
                 ax.axis("off")
 
-            elif i<j:
+            elif i < j:
                 spearman_corr, p_value = spearmanr(X_drifter[nj], X_drifter[ni])
 
                 if spearman_corr > 0.8:
-                    # Density plot for strong correlations
                     hist = ax.hist2d(
-                        
-                        X_drifter[ni], X_drifter[nj], 
-                        bins=20, cmap=cmocean.cm.thermal, cmin=1, )
+                        X_drifter[ni], X_drifter[nj],
+                        bins=20, cmap=cmocean.cm.thermal, cmin=1, cmax=800
+                    )
+                    if hist_thermal is None:
+                        hist_thermal = hist
                     ax.text(
-                        0.4, 0.95, np.round(spearman_corr, 2), fontsize=12,
+                        0.46, 0.95, np.round(spearman_corr, 2), fontsize=14,
                         ha='right', va='top', transform=ax.transAxes, color="red")
-                    print(nj, ni)
                 else:
-                    # Density plot for weak correlations
                     hist = ax.hist2d(
-                    
-                        X_drifter[ni],  X_drifter[nj], 
-                        bins=20, cmap=cmocean.cm.dense, cmin=1, )
+                        X_drifter[ni], X_drifter[nj],
+                        bins=20, cmap=cmocean.cm.dense, cmin=1, cmax=800
+                    )
+                    if hist_dense is None:
+                        hist_dense = hist
+
                 min_val_x = X_drifter[ni].min()
                 max_val_x = X_drifter[ni].max()
-
-                min_val_y=X_drifter[nj].min()
-                max_val_y=X_drifter[nj].max()
-                ax.plot([min_val_x, max_val_x], [min_val_y, max_val_y], color='red', linewidth=1, linestyle='--')
+                min_val_y = X_drifter[nj].min()
+                max_val_y = X_drifter[nj].max()
+                ax.plot([min_val_x, max_val_x], [min_val_y, max_val_y],
+                        color='red', linewidth=1, linestyle='--')
 
             else:
-                # Hide the upper triangle (and optionally diagonal)
-                ax.axis("off")  # Turn off axis completely
+                ax.axis("off")
 
-            # Remove ticks for clarity
             if i < n_features - 1:
                 ax.set_xticks([])
             if j > 0:
                 ax.set_yticks([])
 
-    # Add global labels for x and y axes
+    # Add feature labels
     for i, name in enumerate(feature_names):
-        # Add feature names to the bottom x-axis
-        feature=labels[name]['label']
-        axes[-1, i].set_xlabel(feature, fontsize=12, rotation=45, ha='right')
-        # Add feature names to the left y-axis
-        axes[i, 0].set_ylabel(feature, fontsize=12, rotation=0, ha='right', va='center')
-    # Add space between plots and adjust layout
+        label = labels[name]['label']
+        axes[-1, i].set_xlabel(label, fontsize=16, rotation=45, ha='center')
+        axes[i, 0].set_ylabel(label, fontsize=16, rotation=45, ha='right', va='center')
+
     fig.tight_layout()
+
+    # Add colorbars for both colormaps
+    if hist_thermal:
+        cbar_ax = fig.add_axes([0.91, 0.55, 0.015, 0.3])  # [left, bottom, width, height]
+        cbar=fig.colorbar(hist_thermal[3], cax=cbar_ax, )
+        cbar.ax.tick_params(labelsize=14)
+        cbar.set_label(label="Number of data points (high correlation)", size=14)
+
+    if hist_dense:
+        cbar_ax = fig.add_axes([0.91, 0.15, 0.015, 0.3])
+        cbar2=fig.colorbar(hist_dense[3], cax=cbar_ax, label="Number of data points (low correlation)",)
+        cbar2.ax.tick_params(labelsize=14)
+        cbar2.set_label(label="Number of data points (low correlation)", size=14)
+
     plt.savefig(f'{PROJ_ROOT}/reports/figures/feature_matrix.svg', dpi=300, bbox_inches='tight')
     plt.show()
 
@@ -154,6 +170,8 @@ if __name__ == "__main__":
            'Wave_dir_wind', 'Wave_dir_swell', 'Wave_dir_swell_secondary', 'Tp', ]
 #
     feature_matrix_total=create_feature_matrix(dt_features, variables, fc=True)
-    #plot_matrix(feature_matrix_total.drop(columns='drifter_id'), labels)
+   # print(feature_matrix_total.shape)
+   # plot_matrix(feature_matrix_total.drop(columns='drifter_id'), labels)
+
 
 # %%
