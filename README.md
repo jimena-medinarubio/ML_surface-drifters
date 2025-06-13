@@ -3,58 +3,47 @@
 <a target="_blank" href="https://cookiecutter-data-science.drivendata.org/">
     <img src="https://img.shields.io/badge/CCDS-Project%20template-328F97?logo=cookiecutter" />
 </a>
+Data-driven analysis of surface drifters' trajectories to infer the predominant forcing mechanisms that drive their transport & predict their paths.
 
-Characterisation of ocean surface dynamics by analysing the trajectories of surface drifters using a data-driven approach
+Related publication: "Using surface drifters to characterise near-surface ocean dynamics in the southern North Sea: a data-driven approach"
+Author: Jimena Medina Rubio (PhD Candidate)
 
 ## Project Organization
 
 ```
-├── LICENSE            <- Open-source license if one is chosen
-├── Makefile           <- Makefile with convenience commands like `make data` or `make train`
-├── README.md          <- The top-level README for developers using this project.
+├── LICENSE            <- Open-source license
 ├── data
-│   ├── external       <- Data from third party sources.
+│   ├── external       <- hydrodynamic 
 │   ├── interim        <- Intermediate data that has been transformed.
 │   ├── processed      <- The final, canonical data sets for modeling.
-│   └── raw            <- The original, immutable data dump.
+│   └── raw            <- original drifter trajectories (available at https://zenodo.org/records/14198921) 
 │
-├── docs               <- A default mkdocs project; see www.mkdocs.org for details
+├── models             <- trained random forest & support vector regression models
 │
-├── models             <- Trained and serialized models, model predictions, or model summaries
 │
-├── notebooks          <- Jupyter notebooks. Naming convention is a number (for ordering),
-│                         the creator's initials, and a short `-` delimited description, e.g.
-│                         `1.0-jqp-initial-data-exploration`.
-│
-├── pyproject.toml     <- Project configuration file with package metadata for 
-│                         ml_driven_drifter_data_analysis and configuration for tools like black
-│
-├── references         <- Data dictionaries, manuals, and all other explanatory materials.
+├── references         <- variable dictionaries & labels for plotting
 │
 ├── reports            <- Generated analysis as HTML, PDF, LaTeX, etc.
 │   └── figures        <- Generated graphics and figures to be used in reporting
 │
-├── requirements.txt   <- The requirements file for reproducing the analysis environment, e.g.
-│                         generated with `pip freeze > requirements.txt`
-│
-├── setup.cfg          <- Configuration file for flake8
-│
 └── ml_driven_drifter_data_analysis   <- Source code for use in this project.
     │
-    ├── __init__.py             <- Makes ml_driven_drifter_data_analysis a Python module
+    ├── preprocessing_drifter_data.py               <- data cleaning & formatting into xarray DataTree
     │
-    ├── config.py               <- Store useful variables and configuration
+    ├── processing_drifter_data.py                  <- calculation of velocities, residual velocities & flipping index
     │
-    ├── dataset.py              <- Scripts to download or generate data
+    ├── spectral_analysis_drifter_data.py           <- FFT & Morlet analysis of drifter velocities
     │
-    ├── features.py             <- Code to create features for modeling
+    ├── dataset.py                                  <- interpolation of hydrodynamic & atmospheric data to drifters' coordinates
     │
-    ├── modeling                
-    │   ├── __init__.py 
+    ├── features.py                                 <- transformation of interpolated variables to construct feature matrix
+    │
+    ├── modeling**                
+    │   
     │   ├── predict.py          <- Code to run model inference with trained models          
     │   └── train.py            <- Code to train models
     │
-    └── plots.py                <- Code to create visualizations
+    └── supplementary_material.py                <- **
 ```
 
 --------
