@@ -5,7 +5,6 @@ import pandas as pd
 from pathlib import Path
 from haversine import haversine, Unit
 import matplotlib.pyplot as plt
-
 from scipy.ndimage import gaussian_filter1d
 #%%
 import sys
@@ -13,14 +12,19 @@ sys.path.append("..")
 from plots import plot_trajs
 PROJ_ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = PROJ_ROOT / "data"
-
-
+RAW_DATA_DIR = DATA_DIR / "raw"
+REFERENCES_DIR = PROJ_ROOT / "references"
 #%%
-dt_og=xr.open_datatree(f'{DATA_DIR}/interim/preprocessed_drifter_data.nc')
 
-df_drifters = pd.read_csv(f'{PROJ_ROOT}/references/drifters_info.csv',  delimiter=';', dtype={'ID': str})
-color_dict={str(df_drifters['ID'].values[i]): df_drifters['color'].values[i] for i in range(len(df_drifters['ID'].values))}
-plot_trajs(dt_og, 'trajectories', palette=color_dict, output_format='png')
+#define pre-processed file
+drifter_file=f'{DATA_DIR}/interim/preprocessed_drifter_data.nc'
+# define drifter ID file
+drifter_id_file='drifters_info.csv'
+#%%
+#open datasets
+dt_og=xr.open_datatree(f'{RAW_DATA_DIR}/{drifter_file}')
+df_drifters = pd.read_csv(f'{REFERENCES_DIR}/{drifter_id_file}',  delimiter=';', dtype={'ID': str})
+
 #%%
 def drifter_velocity(data):
     """compute zonal and meridional velocities of drifter
@@ -42,11 +46,9 @@ def calculate_velocities(dt, method='cds'):
     Calculate time differences, distances, and zonal/meridional displacements, then compute forward and 
     central velocities for each trajectory in the xarray dataset.
     
-    Parameters:
     ds (xarray.Dataset): Dataset with 'lon', 'lat', and 'time' variables along with 
                                        'trajectory' and 'obs' dimensions.
-    method: 'cds' (central difference scheme), 'midpoint' (velocity defined at midpoint in space and time between measurements), 
-            'forward' (forward differences)
+    method: 'cds' (central difference scheme), 'forward' (forward differences)
     
     Returns:
     xarray.Dataset: Dataset with added velocity variables.
@@ -97,6 +99,14 @@ def calculate_velocities(dt, method='cds'):
 #%%
 def calcualte_residual(dt, period='24.83h'):
 
+    """
+    Calculate the residual velocities for each drifter in the dataset.
+
+    dt: xarray.DataTree
+    period: str, rolling window period for calculating the residual velocities (default is M2 period).
+        
+   """
+
     d={}
     for node in dt.leaves:
         ds=node.ds
@@ -105,9 +115,8 @@ def calcualte_residual(dt, period='24.83h'):
         time_drifter = pd.DatetimeIndex(ds['time'].values)
         drifter_df = pd.DataFrame({var:ds[var].values for var in ds.variables}, index=time_drifter)
         dx=drifter_df['vx'].rolling(window=period, center=True).mean()
-     #   plt.plot(time_drifter, dx)
-        #mutable_ds['vx_residual']
         dy=drifter_df['vy'].rolling(window=period, center=True).mean()
+
         mutable_ds['vy_residual']=xr.DataArray(dy, dims="time")
         mutable_ds['vx_residual']=xr.DataArray(dx, dims="time")
 
@@ -116,16 +125,24 @@ def calcualte_residual(dt, period='24.83h'):
     return xr.DataTree.from_dict(d) 
 #%%
 def select_frequency_interval(ds, freqs, atol=25, window_size=100):
+    
+    """
+    calculate the last index in the time series where the time difference is stable within a specified frequency range.
+
+    ds: xarray.Dataset with 'time' variable
+    freqs: float, the frequency to check stability against (in seconds)
+    window_size: int, the size of the rolling window to calculate the moving average of time differences (default is 100)
+    """
     # Calculate the time differences in seconds
-        time_diff = ds['time'].differentiate('obs', datetime_unit='s')
-        # Initialize an array to store the moving average of time differences
-        rolling_mean = np.convolve(time_diff, np.ones(window_size)/window_size, mode='valid')
-        stable_intervals = np.isclose(rolling_mean, freqs, atol=atol)
-        ## Get the last index in the rolling mean where the interval is stable
-        last_true_in_rolling = np.where(stable_intervals)[0][-1]        
-        # Adjust the index to match the original time_diff length
-        last_true_index = last_true_in_rolling + window_size - 1  # Adjust for the window size offset
-        return last_true_index
+    time_diff = ds['time'].differentiate('obs', datetime_unit='s')
+    # Initialize an array to store the moving average of time differences
+    rolling_mean = np.convolve(time_diff, np.ones(window_size)/window_size, mode='valid')
+    stable_intervals = np.isclose(rolling_mean, freqs, atol=atol)
+    ## Get the last index in the rolling mean where the interval is stable
+    last_true_in_rolling = np.where(stable_intervals)[0][-1]        
+    # Adjust the index to match the original time_diff length
+    last_true_index = last_true_in_rolling + window_size - 1  # Adjust for the window size offset
+    return last_true_index
 
 #%%
 def flipping_index_continuous(dt, deltat, sampling_frequencies=[300, 1800]):
@@ -133,6 +150,10 @@ def flipping_index_continuous(dt, deltat, sampling_frequencies=[300, 1800]):
     """
     Calculate a continuous flipping index for each drifter and over the trajectory dimensions.
     The window size is adapted based on the time difference between measurements.
+
+    dt: xarray.DataTree with drifter data
+    deltat: float, time difference in hours between measurements
+    sampling_frequencies: list of frequencies in seconds to calculate flipping index for
     """
     d={}
 
@@ -171,11 +192,13 @@ def flipping_index_continuous(dt, deltat, sampling_frequencies=[300, 1800]):
     
     return xr.DataTree.from_dict(d)
 #%%
+#apply functions
 dt=calculate_velocities(dt_og)
 dt=calcualte_residual(dt)
 dt=flipping_index_continuous(dt, 3, sampling_frequencies=[300, 1800])
 
 # %%
+#save datatree to netcdf file
 dt.to_netcdf(f'{PROJ_ROOT}/data/interim/processed_drifter_data.nc')  
 
 # %%
