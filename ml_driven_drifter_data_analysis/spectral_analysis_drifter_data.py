@@ -1,6 +1,4 @@
 #%%
-
-
 import xarray as xr
 import numpy as np
 from pathlib import Path
@@ -15,10 +13,18 @@ import pandas as pd
 PROJ_ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = PROJ_ROOT / "data"
 
-datatree=xr.open_datatree(f'{DATA_DIR}/interim/processed_drifter_data.nc')
+#drifter data file
+drifter_data_file = 'interim/processed_drifter_data.nc'
+
+#open file
+datatree=xr.open_datatree(f'{DATA_DIR}/{drifter_data_file}')
 # %%
 
 def lower_temporal_resolution(datatree, period='3h'):
+
+    """
+    Lower the temporal resolution of the datasets in a datatree to a specified period.
+    """
     d={}
 
     for node in datatree.leaves:
@@ -32,14 +38,21 @@ def lower_temporal_resolution(datatree, period='3h'):
     
     return xr.DataTree.from_dict(d)
 
-def Wavelet_transform(data_norm, dt):
+def Wavelet_transform(data, dt):
+
+    """
+    performs a wavelet transform on the data.
+
+    data: array-like, time series data to be transformed.
+    """
+
     mother=wavelet.Morlet(6)
-    s0 =  dt/2  # Starting scale, in this case 2 * 0.25 years = 6 months
+    s0 =  dt/2  # Starting scale
     dj = 1 / 12  # Twelve sub-octaves per octaves
     J = 20 / dj  # Dynamically adjust to frequency range
-    alpha, _, _ = wavelet.ar1(data_norm)  # Lag-1 autocorrelation for red noise
+    alpha, _, _ = wavelet.ar1(data)  # Lag-1 autocorrelation for red noise
 
-    wave, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(data_norm, dt, dj, s0, J,
+    wave, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(data, dt, dj, s0, J,
                                                         mother)
     # Normalized wavelet and Fourier power spectra
     power = (np.abs(wave)) ** 2
@@ -48,18 +61,25 @@ def Wavelet_transform(data_norm, dt):
 
 def power_spectrum(datatree, vars):
 
+    '''
+    performs fft and wavelet transform on the variables in each normilised ds within datatree.
+    '''
+
     df=[]
 
     for node in datatree.leaves:
         ds=node.ds
         deltat=ds['time'].diff("time").dt.total_seconds().mean().values
+        #normalise data
         normalised=(ds[vars].values-np.mean(ds[vars].values))/np.std(ds[vars].values)
+
+        # Perform wavelet transform
         period, coi, power, freqs, =Wavelet_transform(normalised, deltat)
-        
+        # Calculate the FFT power spectrum
         fft_power = np.abs(np.fft.fft(ds[vars].values))**2
         fft_freqs = np.fft.fftfreq(len(ds[vars].values), d=deltat)
-        # Append the results to the dataframe
-        
+
+        # Append the results to the list
         node_data = {
         'drifter': node.name, 'coi': coi,
         'period': period,
@@ -70,12 +90,15 @@ def power_spectrum(datatree, vars):
         'time': ds['time'].values
         }
 
-        # Append the current node data to the list
         df.append(node_data)
     
     return pd.DataFrame(df)
 
 def plot_single_Wavelet_period(pw, dt, drifter_id):
+
+    """
+    plot the wavelet power spectrum as a function of its period for a single drifter over time.
+    """
     
     power=pw['power'].values[drifter_id]
     period=pw['period'].values[drifter_id]
@@ -112,6 +135,10 @@ def plot_single_Wavelet_period(pw, dt, drifter_id):
 
 def plot_Fourier_Wavelet(pw, dt, name_fig='Wavelet_Fourier', output_path=None):
 
+    """
+    plot the mean wavelet power spectrum and Fourier transform as a function of frequency over all drifers
+    """
+
     t= (pw['time'][0] - pw['time'][0][0]) / np.timedelta64(1, 's')/3600/24
     power=pw['power'].mean(axis=0)
     period=pw['period'].mean(axis=0)
@@ -146,9 +173,7 @@ def plot_Fourier_Wavelet(pw, dt, name_fig='Wavelet_Fourier', output_path=None):
     ax[1].tick_params(axis='both', which='major', labelsize=14)  # x and y ticks fontsize
     ax[1].ticklabel_format(style='plain', axis='both')
 
-   # ax[1].set_ylabel('Period (hrs)')\n",
     ax[1].set_xlabel('Time since release [days]', fontsize=14)
-    #ax[1].set_title('Wavelet Power Spectrum')
     dy=0.05
     
     
@@ -194,21 +219,19 @@ def plot_Fourier_Wavelet(pw, dt, name_fig='Wavelet_Fourier', output_path=None):
 # %%
 dt_lowres=lower_temporal_resolution(datatree)
 
+#zonal
 pw_x=power_spectrum(dt_lowres, 'vx')
-pw_y=power_spectrum(dt_lowres, 'vy')
-pw_total=power_spectrum(dt_lowres, 'v')
-# %%
 plot_single_Wavelet_period(pw_x, 3*3600, drifter_id=5)
 plot_Fourier_Wavelet(pw_x, 3*3600 )
-
-# %%
+#%%
+#meridional
+pw_y=power_spectrum(dt_lowres, 'vy')
 plot_Fourier_Wavelet(pw_y, 3*3600 )
 plot_single_Wavelet_period(pw_y, 3*3600, drifter_id=5)
 #%%
-#plot_single_Wavelet_period(pw_total, 3*3600, drifter_id=5)
+#total
+pw_total=power_spectrum(dt_lowres, 'v')
+plot_single_Wavelet_period(pw_total, 3*3600, drifter_id=5)
 plot_Fourier_Wavelet(pw_total, 3*3600 )
-
-# %%
-
 
 # %%
