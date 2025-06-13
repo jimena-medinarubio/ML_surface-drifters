@@ -14,7 +14,6 @@ RAW_DATA_DIR = f'{PROJ_ROOT}/data/raw'
 INTERIM_DATA_DIR = f'{PROJ_ROOT}/data/interim'
 PROCESSED_DATA_DIR = f'{PROJ_ROOT}/data/processed'
 EXTERNAL_DATA_DIR = f'{PROJ_ROOT}/data/external'
-
 MODELS_DIR = f'{PROJ_ROOT}/models'
 REFS_DIR = f'{PROJ_ROOT}/references'
 REPORTS_DIR =f'{PROJ_ROOT}/reports'
