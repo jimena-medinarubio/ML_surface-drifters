@@ -8,21 +8,16 @@ from scipy.ndimage import gaussian_filter1d
 #%%
 import sys
 sys.path.append("..")
-from ml_driven_drifter_data_analysis.plots_old import plot_trajs
-PROJ_ROOT = Path(__file__).resolve().parents[1]
-DATA_DIR = PROJ_ROOT / "data"
-RAW_DATA_DIR = DATA_DIR / "raw"
-REFERENCES_DIR = PROJ_ROOT / "references"
+from config import INTERIM_DATA_DIR, RAW_DATA_DIR, REFS_DIR
 #%%
-
 #define pre-processed file
-drifter_file=f'{DATA_DIR}/interim/preprocessed_drifter_data.nc'
+drifter_file='preprocessed_drifter_data.nc'
 # define drifter ID file
 drifter_id_file='drifters_info.csv'
 #%%
 #open datasets
-dt_og=xr.open_datatree(f'{RAW_DATA_DIR}/{drifter_file}')
-df_drifters = pd.read_csv(f'{REFERENCES_DIR}/{drifter_id_file}',  delimiter=';', dtype={'ID': str})
+dt_og=xr.open_datatree(f'{INTERIM_DATA_DIR}/{drifter_file}')
+df_drifters = pd.read_csv(f'{REFS_DIR}/{drifter_id_file}',  delimiter=';', dtype={'ID': str})
 
 #%%
 def drifter_velocity(data):
@@ -198,6 +193,6 @@ dt=flipping_index_continuous(dt, 3, sampling_frequencies=[300, 1800])
 
 # %%
 #save datatree to netcdf file
-dt.to_netcdf(f'{PROJ_ROOT}/data/interim/processed_drifter_data.nc')  
+dt.to_netcdf(f'{INTERIM_DATA_DIR}/processed_drifter_data.nc')  
 
 # %%

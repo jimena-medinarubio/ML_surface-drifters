@@ -6,23 +6,21 @@ from parcels import FieldSet, Geographic, GeographicPolar
 
 #%%
 import sys
-sys.path.append("..")
-PROJ_ROOT = Path(__file__).resolve().parents[2]
-DATA_DIR = PROJ_ROOT / "data"
-sys.path.append(str(PROJ_ROOT))  # Add project root to sys.path
+sys.path.append("..") # Add project root to sys.path
+from config import EXTERNAL_DATA_DIR, INTERIM_DATA_DIR, REFS_DIR
 from processing_drifter_data import select_frequency_interval
 
 #%%
 #specify the files to be used
-wave_file=f'{DATA_DIR}/external/waves-wind-swell.nc' 
-wind_file=f'{DATA_DIR}/external/wind.nc' 
-curr_file=f'{DATA_DIR}/external/ocean_currents.nc' 
-bathymetry_file=f'{DATA_DIR}/external/bathymetry.nc' 
+wave_file=f'{EXTERNAL_DATA_DIR}/waves-wind-swell.nc' 
+wind_file=f'{EXTERNAL_DATA_DIR}/wind.nc' 
+curr_file=f'{EXTERNAL_DATA_DIR}/ocean_currents.nc' 
+bathymetry_file=f'{EXTERNAL_DATA_DIR}/bathymetry.nc' 
 
 #drifters data
-datatree_file= f'{DATA_DIR}/interim/processed_drifter_data.nc'
-wave_variables=f'{PROJ_ROOT}/references/waves_dataset.csv'
-saving_file=f'{PROJ_ROOT}/data/interim/interpolated_atm_ocean_datasets_depth.nc'
+datatree_file= f'{INTERIM_DATA_DIR}/processed_drifter_data.nc'
+wave_variables=f'{REFS_DIR}/waves_dataset.csv'
+saving_file=f'{INTERIM_DATA_DIR}/interpolated_atm_ocean_datasets_depth.nc'
 
 #%%
 

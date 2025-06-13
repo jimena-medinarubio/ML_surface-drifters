@@ -11,11 +11,11 @@ import cmocean
 #%%
 import sys
 sys.path.append("..")
-from config import DATA_DIR, PROJ_ROOT
+from config import INTERIM_DATA_DIR, PROJ_ROOT, REFS_DIR
 
 #%%
-interpolated_data_file=f'{DATA_DIR}/interim/interpolated_atm_ocean_datasets.nc'
-labels_file=f'{PROJ_ROOT}/references/variables_labels_residual.csv'
+interpolated_data_file=f'{INTERIM_DATA_DIR}/interpolated_atm_ocean_datasets.nc'
+labels_file=f'{REFS_DIR}/variables_labels_residual.csv'
 
 # %%
 def calculate_stokes_drift_depth(u, Tp, z, beta=1, gamma=5.97):

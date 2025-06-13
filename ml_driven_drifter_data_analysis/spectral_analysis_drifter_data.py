@@ -8,15 +8,15 @@ import cmocean
 import pycwt as wavelet
 from scipy.interpolate import interp1d
 import pandas as pd
-
+import sys
 #%%
-DATA_DIR = '/Users/1614576/Desktop/ML-driven drifter data analysis/data' 
-
+sys.path.append("..")
+from config import INTERIM_DATA_DIR, FIGURES_DIR
 #drifter data file
-drifter_data_file = 'interim/processed_drifter_data.nc'
+drifter_data_file = 'processed_drifter_data.nc'
 
 #open file
-datatree=xr.open_datatree(f'{DATA_DIR}/{drifter_data_file}')
+datatree=xr.open_datatree(f'{INTERIM_DATA_DIR}/{drifter_data_file}')
 # %%
 
 def lower_temporal_resolution(datatree, period='3h'):
@@ -208,8 +208,7 @@ def plot_Fourier_Wavelet(pw, dt, name_fig='Wavelet_Fourier', output_path=None):
     plt.tight_layout()  # Adjust layout to prevent overlap\n",
 
     if output_path is None:
-        PROJ_ROOT = Path(__file__).resolve().parents[2]
-        output_path = PROJ_ROOT / "reports" / "figures"
+        output_path = FIGURE_DIR
         
     plt.savefig(f'{output_path}/{name_fig}.svg', dpi=300)
 
@@ -232,6 +231,6 @@ plot_single_Wavelet_period(pw_y, 3*3600, drifter_id=5)
 #total
 pw_total=power_spectrum(dt_lowres, 'v')
 #plot_single_Wavelet_period(pw_total, 3*3600, drifter_id=5)
-plot_Fourier_Wavelet(pw_total, 3*3600, name_fig='FigB1', output_path='/Users/1614576/Desktop/ML-driven drifter data analysis/reports/figures/' )
+plot_Fourier_Wavelet(pw_total, 3*3600, name_fig='FigB1', output_path=FIGURES_DIR)
 
 # %%

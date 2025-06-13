@@ -7,10 +7,7 @@ from pathlib import Path
 from haversine import haversine, Unit
 #%%
 #specify directories
-PROJ_ROOT = Path(__file__).resolve().parents[2]
-DATA_DIR = PROJ_ROOT / "data"
-RAW_DATA_DIR = DATA_DIR / "raw"
-REFERENCES_DIR = PROJ_ROOT / "references"
+from config import PROJ_ROOT, RAW_DATA_DIR, DATA_DIR, REFS_DIR
 
 
 #define drifter file
@@ -22,7 +19,7 @@ velocity_file='external/velocity_land_mask.nc'
 
 #open datasets
 ds_og=xr.open_dataset(f'{RAW_DATA_DIR}/{drifter_file}')
-df_drifters = pd.read_csv(f'{REFERENCES_DIR}/{drifter_id_file}',  delimiter=';', dtype={'ID': str})
+df_drifters = pd.read_csv(f'{REFS_DIR}/{drifter_id_file}',  delimiter=';', dtype={'ID': str})
 drifters_id_dict = dict(zip(df_drifters['Drifter'], df_drifters['ID']))
 #land mask
 velocity_land_mask = xr.open_dataset(f'{DATA_DIR}/{velocity_file}')
