@@ -26,8 +26,6 @@ dt_features=xr.open_datatree(f'{INTERIM_DATA_DIR}/interpolated_atm_ocean_dataset
 wave_field= create_fieldset(wave_file, 'time', wave_variables.values[0], wave_variables.columns)
 wind_field= create_fieldset(wind_file, 'valid_time', ['u10', 'v10'], ['U10', 'V10'])
 curr_field= create_fieldset(curr_file, 'time', ['uo', 'vo'], ['U', 'V'])
-curr_field_rf= create_fieldset(curr_file_decomposed, 'time', ['uo_lp', 'vo_lp', 'u_tides', 'v_tides'], ['U_lp', 'V_lp', 'U_hp', 'V_hp'])
-bathymetry_field=create_static_fieldset(bathymetry_file, ['deptho'], ['z'])
 
 fieldsets=[curr_field, wind_field, wave_field]
 time_starts=[xr.open_dataset(curr_file)['time'][0], xr.open_dataset(wind_file)['valid_time'][0], xr.open_dataset(wave_file)['time'][0]]
