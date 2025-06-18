@@ -10,7 +10,7 @@ sys.path.append("..")
 from config import MODELS_DIR
 from features import transformations, create_feature_matrix
 from dataset import create_fieldset, create_static_fieldset
-from modeling.linear_regression import select_variables, linear_regression
+from ml_driven_drifter_data_analysis.modeling.fitting_models.linear_regression import select_variables, linear_regression
 import joblib
 
  #%%

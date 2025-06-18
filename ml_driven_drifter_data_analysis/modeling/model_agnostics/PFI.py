@@ -3,7 +3,7 @@ import pandas as pd
 import sys
 sys.path.append("..")
 from config import REFS_DIR, PROJ_ROOT , FIGURES_DIR, PROCESSED_DATA_DIR
-from modeling.model_agnostics import plot_pfi_shadow,  plot_single_pfi
+from ml_driven_drifter_data_analysis.modeling.model_agnostics.model_agnostics_plots import plot_pfi_shadow,  plot_single_pfi
 #%%
 
 ML_model_settings={'RF_total': {'stats':[PROCESSED_DATA_DIR/ 'Statistics models'/'RandomForest'/'RF_Ud_stats', PROCESSED_DATA_DIR/ 'Statistics models'/'RandomForest'/'RF_Vd_stats'], 

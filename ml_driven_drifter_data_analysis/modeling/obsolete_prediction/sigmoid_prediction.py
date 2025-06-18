@@ -1,23 +1,17 @@
 #%%
 import numpy as np
 from tqdm import tqdm
-import matplotlib.pyplot as plt
-from pathlib import Path
 import pandas as pd
 import xarray as xr
-import sys
-sys.path.append("..")
-from config import MODELS_DIR
-from features import transformations, create_feature_matrix
-from dataset import create_fieldset, create_static_fieldset
-from modeling.linear_regression import select_variables, linear_regression
-import joblib
 from scipy.optimize import curve_fit
 import pickle
-
-#%%
-PROJ_ROOT = Path(__file__).resolve().parents[2]
-DATA_DIR = PROJ_ROOT / "data"
+from scipy.special import lambertw
+import sys
+sys.path.append("..")
+from config import DATA_DIR
+from features import create_feature_matrix
+from dataset import create_fieldset, create_static_fieldset
+from ml_driven_drifter_data_analysis.modeling.fitting_models.linear_regression import select_variables
 #%%
 
 

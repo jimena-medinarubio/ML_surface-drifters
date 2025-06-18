@@ -1,29 +1,23 @@
 #%%
 import numpy as np
 from tqdm import tqdm
-import matplotlib.pyplot as plt
-from pathlib import Path
 import pandas as pd
 import xarray as xr
-import sys
-sys.path.append("..")
-from config import MODELS_DIR
-from features import transformations, create_feature_matrix
-from dataset import create_fieldset, create_static_fieldset
-from modeling.linear_regression import select_variables, linear_regression
-import joblib
 from scipy.optimize import curve_fit
 import pickle
 from scipy.special import lambertw
+import sys
+sys.path.append("..")
+from config import DATA_DIR
+from features import create_feature_matrix
+from dataset import create_fieldset, create_static_fieldset
+from ml_driven_drifter_data_analysis.modeling.fitting_models.linear_regression import select_variables
 
 #%%
-PROJ_ROOT = Path(__file__).resolve().parents[2]
-DATA_DIR = PROJ_ROOT / "data"
-#%%
-
 
 def interpolate_fieldsets(x, y, component,  time, fieldsets, initial_times, names=['', '10', 'stokes'],):
     """
+    Interpolates the given component (U or V) for the specified x, y coordinates and time across multiple fieldsets.
     fieldsets=[ocean, wind, waves]
     initial_times=[ocean, wind, waves]
     """
@@ -37,16 +31,25 @@ def interpolate_fieldsets(x, y, component,  time, fieldsets, initial_times, name
     return interpolated_data
 
 def interpolate_all_components(x, y, time, fieldsets, initial_times):
+    """
+    Interation over the fieldsets to interpolate both U and V components.
+    """
     interpolated = {}
     for component in ['U', 'V']:
         data = interpolate_fieldsets(x, y, component, time, fieldsets, initial_times)
         interpolated.update(data)
     return interpolated
 
-def traditional_formula(current, stokes, wind, wind_slip):
-    return current + stokes +wind*wind_slip
+def traditional_formula(current, stokes, wind, wind_drag_coeff):
+    """
+    linear regression formula for the drifter velocity as a linear combination of currents, stokes & wind
+    """
+    return current + stokes +wind*wind_drag_coeff
 
 def alternative_sigmoid(current, stokes, wind_sigmoid):
+    """
+    alternative regression formula inclusing
+    """
     return current + stokes + wind_sigmoid
 
 # Sigmoid function
