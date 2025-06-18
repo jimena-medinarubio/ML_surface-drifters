@@ -11,6 +11,9 @@ from sklearn.preprocessing import StandardScaler
 
 def interpolate_fieldsets(x, y, component,  time, fieldsets, initial_times, names=['', '10', 'stokes'],):
     """
+
+    Interpolates the specified component (U or V) from multiple fieldsets at given coordinates (x, y) and time.
+
     fieldsets=[ocean, wind, waves]
     initial_times=[ocean, wind, waves]
     """
@@ -32,6 +35,8 @@ def interpolate_all_components(x, y, time, fieldsets, initial_times):
 
 def interpolate_fieldsets_ML(x, y, t, fieldsets, initial_times, modelu, modelv, variables, fi_model, uscale, vscale ):
     """
+
+    Interpolates the specified variables from multiple fieldsets at given coordinates (x, y) and time allowing for scaling (SVR model).
     fieldsets=[ocean, wind, waves]
     initial_times=[ocean, wind, waves]
     variables=[['U', 'V'], ['U10', 'V10'], wave_variables.columns]
@@ -87,12 +92,15 @@ def interpolate_fieldsets_ML(x, y, t, fieldsets, initial_times, modelu, modelv, 
     return zonal_vel, meridional_vel
 
 def traditional_formula(current, stokes, wind, wind_slip):
+    # Traditional formula for calculating the velocity based on current, Stokes drift, and wind slip
     return current + stokes +wind*wind_slip
 
 def alternative_sigmoid(current, stokes, wind_sigmoid):
+    # alternative formula for calculating the velocity based on current, Stokes drift, and a sigmoid function of wind
     return current + stokes + wind_sigmoid
 
 def relative_wind_formula(current, stokes, wind, wind_slip):
+    # Relative wind formula for calculating the velocity based on current, Stokes drift, and wind slip
     return current + stokes +(wind-current)*wind_slip
 
 # Sigmoid function
@@ -100,6 +108,9 @@ def sigmoid(x, L, x0, k, e):
     return L / (1 + np.exp(-k * (x - x0))) + e
 
 def rescale_sigmoid_params(popt, scaler_X, scaler_y):
+    """
+    rescale the parameters of the sigmoid function after fitting to standardized data.
+    """
     L_std, x0_std, k_std, e_std = popt
 
     # Reverse standardization
@@ -113,6 +124,9 @@ def rescale_sigmoid_params(popt, scaler_X, scaler_y):
     return L, x0, k, e
 
 def fit_sigmoid(X, y,):
+
+    # Fit a sigmoid function to the data using curve fitting & standarisation of data.
+
     X = np.array(X)
     y = np.array(y)
 
@@ -131,6 +145,10 @@ def fit_sigmoid(X, y,):
 
 def advance_timestep_sigmoid(x, y, U, Ustokes, U10, sigmoid_coeffs, V, Vstokes, V10, sigmoid_coeffs_v, dt=5*60, R=6371000,):
 
+    """
+    advection of the drifter using the velocity predictions from sigmoid function fitting.
+    """
+
     lon_rad = np.deg2rad(x)
     lat_rad = np.deg2rad(y)
 
@@ -147,6 +165,9 @@ def advance_timestep_sigmoid(x, y, U, Ustokes, U10, sigmoid_coeffs, V, Vstokes, 
 
 def advance_timestep_linear(x, y, U, Ustokes, U10, wind_slip_u, V, Vstokes, V10, wind_slip_v, dt=5*60, R=6371000, relative_wind=False):
 
+    """
+    advection of the drifter using the velocity predictions from linear regression.
+    """
     lon_rad = np.deg2rad(x)
     lat_rad = np.deg2rad(y)
 
@@ -166,6 +187,10 @@ def advance_timestep_linear(x, y, U, Ustokes, U10, wind_slip_u, V, Vstokes, V10,
 
 def advance_timestep_ML(x, y, zonal_vel, meridional_vel, dt=1*60, R=6371000):
 
+    """
+    advection of the drifter using the velocity predictions from machine learning models.
+    """
+
     lon_rad = np.deg2rad(x)
     lat_rad = np.deg2rad(y)
 
@@ -181,6 +206,8 @@ def advance_timestep_ML(x, y, zonal_vel, meridional_vel, dt=1*60, R=6371000):
 def recreate_trajs_LR_sigmoid(ds, delta_t_minutes, trajs_days, sigmoid_coeffs, coeffs_v,  fieldsets, initial_times):
 
     """
+    iteration over time steps to get the interpolated values and advance the drifter position using a sigmoid function.
+
     ds= xarray dataset for one drifter
     """
 
@@ -214,6 +241,7 @@ def recreate_trajs_LR_sigmoid(ds, delta_t_minutes, trajs_days, sigmoid_coeffs, c
 def recreate_trajs_LR(ds, delta_t_minutes, trajs_days, coeffs_u, coeffs_v, relative_wind, fieldsets, initial_times):
 
     """
+    iteration over time steps to get the interpolated values and advance the drifter position using linear regression.
     ds= xarray dataset for one drifter
     """
 
@@ -244,79 +272,11 @@ def recreate_trajs_LR(ds, delta_t_minutes, trajs_days, coeffs_u, coeffs_v, relat
     
     return saving_dict
 
-def interpolate_fieldsets_ML(x, y, t, fieldsets, initial_times, modelu, modelv, variables, fi_model, uscale, vscale ):
-    """
-    fieldsets=[ocean, wind, waves]
-    initial_times=[ocean, wind, waves]
-    variables=[['U', 'V'], ['U10', 'V10'], wave_variables.columns]
-    """
-
-    interp_ds={}
-
-    for f, fieldset in enumerate(fieldsets):
-        if initial_times[f]!=None:
-            for var in variables[f]:
-                time=(t - initial_times[f].values).astype('timedelta64[s]').astype(int)
-                a=getattr(fieldset, var).eval(time, 0, y, x, applyConversion=False) 
-                interp_ds[var]=a
-        else: #static field (e.g. bathymetry)
-            for var in variables[f]:
-                a=getattr(fieldset, var).eval(0, 0, y, x, applyConversion=False) 
-                interp_ds[var]=[a]
-    interp_ds['time']=[t]
-    df = pd.DataFrame(interp_ds) # Convert dataset to DataFrame
-    df=df.reset_index()
-  #  print(df)
-    df=transformations(df, waves=True, filter_currents=False)
-    df=df.set_index('time')
-    feature_matrix=df
-
-    if 'obs' in feature_matrix.columns or 'trajectory' in feature_matrix.columns:
-        feature_matrix = feature_matrix.drop(columns=['obs', 'trajectory'])
-    feature_matrix=feature_matrix.drop(columns=['Hs', 'index'])
-    feature_matrix.columns = [str(col) for col in feature_matrix.columns]
-
-    if fi_model!=None:
-        feature_matrix=feature_matrix[fi_model.feature_names_in_]
-        flipping_index=fi_model.predict(feature_matrix)
-        feature_matrix['flipping_index_scaled']=flipping_index
-    
-    if 'lat' in modelu.feature_names_in_:
-        feature_matrix['lon'], feature_matrix['lat']=x, y       
-
-
-    #reorder
-    feature_matrix=feature_matrix[modelu.feature_names_in_]
-    feature_matrixv=feature_matrix[modelv.feature_names_in_]
-
-    if uscale!=None:
-        u_feature_matrix=uscale.fit_transform(feature_matrix)
-        v_feature_matrix=vscale.fit_transform(feature_matrixv)
-        feature_matrix = pd.DataFrame(u_feature_matrix, columns=feature_matrix.columns, index=feature_matrix.index)
-        feature_matrix = pd.DataFrame(v_feature_matrix, columns=feature_matrixv.columns, index=feature_matrixv.index)
-
-    zonal_vel=modelu.predict(feature_matrix)
-    meridional_vel=modelv.predict(feature_matrixv)
-
-    return zonal_vel, meridional_vel
-
-def advance_timestep_ML(x, y, zonal_vel, meridional_vel, dt=1*60, R=6371000):
-
-    lon_rad = np.deg2rad(x)
-    lat_rad = np.deg2rad(y)
-
-    dx=zonal_vel*dt
-    delta_lon_rad = dx / (R * np.cos(lat_rad))
-    x_new=lon_rad+delta_lon_rad
-
-    dy=meridional_vel*dt
-    y_new = lat_rad + dy / R 
-
-    return np.rad2deg(x_new)[0], np.rad2deg(y_new)[0]
-
 def recreate_trajs_ML(ds, delta_t_minutes, trajs_days, fieldsets, initial_times, modelu, modelv,  variables, fi_model, uscale, vscale):
 
     """
+    iteration over time steps to get the interpolated values and advance the drifter position using machine learning models allowing for scaling of velocity predictions.
+
     ds= xarray dataset for one drifter
     uscale=[Xcaler, yscaler]
     """
