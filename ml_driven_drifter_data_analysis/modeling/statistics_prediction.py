@@ -47,6 +47,11 @@ dt_pred.to_netcdf(f'{DATA_DIR}/interim/predicted_trajectories.nc')
 #%%
 
 def MCSD(drifter_pred, drifter_obs, residual=False):
+
+    """
+    Mean cumulative separation distance (MCSD): quantification of the average distance 
+    between observed and predicted positions of a drifter over time.
+    """
     
     obs_positions=np.vstack( (drifter_obs['lat'].values, drifter_obs['lon'].values)).T
     pred_positions=np.vstack( (drifter_pred['lat'].values, drifter_pred['lon'].values )).T
@@ -83,6 +88,11 @@ def LiuWeisberg_ss(drifter_pred_block, drifter_obs_block, n=1):
     return LWS, cumulative_length[-1]
 
 def plot_points_and_avg(trajectories, colors, property='MCSD', ylabel='Mean Cumulative Separation Distance [km]', labels=None, order=None, name=None):
+    
+    """
+    plot of the individual drifter metrics and the median for each model.
+    """
+
     if order is None:
         data = {model: [] for model in trajectories['0510'].keys() if model != 'obs'}  # Dictionary to store MCSD values for each model
     else:
@@ -127,11 +137,14 @@ def plot_points_and_avg(trajectories, colors, property='MCSD', ylabel='Mean Cumu
     plt.legend( fontsize=14, loc='best')
 
     plt.savefig(f'{PROJ_ROOT}/reports/figures/prediction/{property}_{name}.svg', dpi=300, bbox_inches='tight')
-
     # Show plot
     plt.show()
 
 def plot_prediction(drifter, labels, dt_obs, dt_pred, name=None):
+    
+    """
+    plot of the reconstructed trajectory of a single drifter for all models
+    """
 
     fig, ax = plt.subplots(figsize=(14, 12), subplot_kw={'projection': ccrs.PlateCarree()})
 
@@ -174,31 +187,6 @@ def plot_prediction(drifter, labels, dt_obs, dt_pred, name=None):
 
     # Show plot
     plt.show()
-#%%
-#calculate stats
-for drifter in dt_pred:
-    for model in dt_pred[drifter]:
-        if 'residual' in model:
-            res=True
-        else:
-            res=False
-
-        valid_obs_times = dt_obs[drifter]['time'].where(dt_obs[drifter]['time'] <= dt_pred[drifter][model].time.max().values, drop=True)
-
-        # Select predictions at the closest times
-        predictions = dt_pred[drifter][model].sel(time=valid_obs_times, method='nearest')
-    
-       
-        cumd, d=MCSD(predictions, dt_obs[drifter], residual=res)
-        ss, trajs =LiuWeisberg_ss(predictions, dt_obs[drifter], n=0.05)
-        dt_pred[drifter][model]['MCSD']=xr.DataArray(cumd, dims=[])
-        dt_pred[drifter][model]['ss']=xr.DataArray(ss, dims=[])
-        dt_pred[drifter][model]['traj_length']=xr.DataArray(trajs, dims=[])
-        dt_pred[drifter][model]['D']=xr.DataArray(d, dims=['t'])
-
-        since_release= (valid_obs_times - valid_obs_times[0]) / np.timedelta64(1, 'D')
-        
-        dt_pred[drifter][model]['t']=xr.DataArray(since_release.values)
 
 
 def D_timeseries(labels, dt_pred, dt_obs, name=None, xlim=None, ylim=30, ylim_big=150):
@@ -285,6 +273,34 @@ def D_timeseries(labels, dt_pred, dt_obs, name=None, xlim=None, ylim=30, ylim_bi
 
     return models
 #%%
+#calculate statistics for all models and drifters
+for drifter in dt_pred:
+    for model in dt_pred[drifter]:
+        if 'residual' in model:
+            res=True
+        else:
+            res=False
+
+        valid_obs_times = dt_obs[drifter]['time'].where(dt_obs[drifter]['time'] <= dt_pred[drifter][model].time.max().values, drop=True)
+
+        # Select predictions at the closest times
+        predictions = dt_pred[drifter][model].sel(time=valid_obs_times, method='nearest')
+    
+       
+        cumd, d=MCSD(predictions, dt_obs[drifter], residual=res)
+        ss, trajs =LiuWeisberg_ss(predictions, dt_obs[drifter], n=0.05)
+        dt_pred[drifter][model]['MCSD']=xr.DataArray(cumd, dims=[])
+        dt_pred[drifter][model]['ss']=xr.DataArray(ss, dims=[])
+        dt_pred[drifter][model]['traj_length']=xr.DataArray(trajs, dims=[])
+        dt_pred[drifter][model]['D']=xr.DataArray(d, dims=['t'])
+
+        since_release= (valid_obs_times - valid_obs_times[0]) / np.timedelta64(1, 'D')
+        
+        dt_pred[drifter][model]['t']=xr.DataArray(since_release.values)
+
+#%%
+#PLOTS
+
 #MCSD  averages for all models
 
 #Fig. 7
