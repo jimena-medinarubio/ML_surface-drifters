@@ -133,7 +133,7 @@ def eliminate_signal_errors(dt, threshold=3):
 #%%
 
 #apply funcitons to data
-dt = remove_after_land(dt_og, velocity_land_mask, initial_time=False)
+dt = remove_after_land(dt_og, velocity_land_mask, initial_time=True)
 dt = filter_time(dt)
 dt = eliminate_signal_errors(dt)
 #%%
