@@ -3,6 +3,7 @@
 [![CCDS Project template](https://img.shields.io/badge/CCDS-Project%20template-328F97?logo=cookiecutter)](https://cookiecutter-data-science.drivendata.org/)
 
 Data-driven analysis of surface drifters' trajectories to infer the predominant forcing mechanisms that drive their transport & predict their paths.
+Data: https://doi.org/10.5281/zenodo.14198921
 
 Related publication: "Using surface drifters to characterise near-surface ocean dynamics in the southern North Sea: a data-driven approach"
 
