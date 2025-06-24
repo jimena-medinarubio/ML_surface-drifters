@@ -28,6 +28,15 @@ Author: Jimena Medina Rubio (PhD Candidate)
 │
 └── ml_driven_drifter_data_analysis   <- Source code for use in this project.
     │
+    ├── Plotting
+    │    ├──  domain_figures.py                        
+    │    └──  flipping_index.py
+    │                        
+    ├──supplementary_material
+    │    ├──  autocorrelation_times.py
+    │    ├──  sensitivity_flipping_index.py                        
+    │    └──  drifter_measurements_error.py
+    │
     ├── preprocessing_drifter_data.py               <- data cleaning & formatting into xarray DataTree
     │
     ├── processing_drifter_data.py                  <- calculation of velocities, residual velocities & flipping index
@@ -38,12 +47,31 @@ Author: Jimena Medina Rubio (PhD Candidate)
     │
     ├── features.py                                 <- transformation of interpolated variables to construct feature matrix
     │
-    ├── modeling**                
-    │   
-    │   ├── predict.py          <- Code to run model inference with trained models          
-    │   └── train.py            <- Code to train models
-    │
-    └── supplementary_material.py                <- **
+    ├── modeling                
+        ├──  train.py                        <- functions to train models
+        ├──  fitting_models                  <- execution of training functions for each model
+        │    ├── linear_regression.py
+        │    ├── RandomForest.py    
+        │    ├── SVR.py
+        │    ├── RandomForest_FI_fit.py
+        │    └── RandomForest_tests.py
+        │
+        ├──  model_agnostics.py
+        │    ├── PFI.py
+        │    ├── calculate_ALE.py    
+        │    ├── model_agnostics_plots.py
+        │    └── ALE_plots.py
+        │          
+        ├──  prediction
+        │    ├── prediction_functions.py
+        │    ├── predict_linear_regression.py
+        │    ├── prediction_ML.py    
+        │    └── predict_linear_regression_sigmoid.py
+        │
+        ├──  statistics_prediction.py
+        │  
+        ├──  decomposing_currents.py
+           
 ```
 
 --------
