@@ -3,12 +3,11 @@
 [![DOI](https://zenodo.org/badge/1001354932.svg)](https://doi.org/10.5281/zenodo.17975391)
 [![CCDS Project template](https://img.shields.io/badge/CCDS-Project%20template-328F97?logo=cookiecutter)](https://cookiecutter-data-science.drivendata.org/)
 
-Data-driven analysis of surface drifters' trajectories to infer the predominant forcing mechanisms that drive their transport & predict their paths.
-Data: https://doi.org/10.5281/zenodo.14198921
+Related publication: Medina-Rubio, J., Nussbaum, M., van den Bremer, T. S., and van Sebille, E.: Using surface drifters to characterise near-surface ocean dynamics in the southern North Sea: a data-driven approach, EGUsphere [preprint], https://doi.org/10.5194/egusphere-2025-3287, 2025.
 
-Related publication: "Using surface drifters to characterise near-surface ocean dynamics in the southern North Sea: a data-driven approach"
+Related data: [![DOI](https://zenodo.org/badge/1001354932.svg)](https://doi.org/10.5281/zenodo.14198921)
+Related models: [![DOI](https://zenodo.org/badge/1001354932.svg)](https://doi.org/10.5281/zenodo.17901303) [![DOI](https://zenodo.org/badge/1001354932.svg)](https://doi.org/10.5281/zenodo.17901907)
 
-Author: Jimena Medina Rubio (PhD Candidate)
 
 ## Project Organization
 
